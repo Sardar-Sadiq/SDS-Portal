@@ -77,7 +77,7 @@ export const Sidebar = ({
             </div>
             <button
               onClick={() => setCollapsed(true)}
-              className="p-1.5 rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors shrink-0"
               title="Collapse Sidebar"
             >
               <PanelLeftClose className="w-4 h-4" />
@@ -89,7 +89,7 @@ export const Sidebar = ({
             className="w-9 h-9 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center font-bold text-xs shadow-sm hover:opacity-90 transition-opacity"
             title="Expand Sidebar"
           >
-            <PanelLeft />
+            <PanelLeft className="w-4 h-4" />
           </button>
         )}
       </div>

@@ -110,7 +110,7 @@ export function NotificationStack({
   maxVisible = 3,
   collapsedLabel = "Notifications",
   expandedLabel = "View all",
-  emptyLabel = "All caught up",
+
   className,
   classNames,
 }) {
@@ -137,12 +137,12 @@ export function NotificationStack({
     return (
       <div
         className={cn(
-          "flex w-full max-w-[22rem] items-center justify-center gap-2 rounded-3xl bg-muted/70 px-5 py-8 text-sm font-medium text-muted-foreground",
+          "flex w-full max-w-[22rem] items-center justify-center gap-2 rounded-3xl bg-muted/70 px-5 py-5 text-sm font-medium text-muted-foreground",
           className,
         )}
       >
         <BellOff className="h-4 w-4" aria-hidden="true" />
-        {emptyLabel}
+
       </div>
     );
   }

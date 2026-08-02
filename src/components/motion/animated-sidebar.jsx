@@ -869,6 +869,8 @@ export function AnimatedSidebarMenuButton({
     }
   };
 
+  const isIconOnly = panel.collapsed || !children;
+
   const content = (
     <>
       {isActive ? (
@@ -886,33 +888,35 @@ export function AnimatedSidebarMenuButton({
           {icon}
         </span>
       ) : null}
-      <motion.span
-        initial={false}
-        animate={{
-          opacity: panel.collapsed ? 0 : 1,
-          x: panel.collapsed ? -4 : 0,
-        }}
-        transition={
-          context.reduce
-            ? REDUCED_TRANSITION
-            : panel.collapsed
-              ? LABEL_EXIT_TRANSITION
-              : LABEL_ENTER_TRANSITION
-        }
-        aria-hidden={panel.collapsed}
-        className={cn(
-          "relative z-10 min-w-0 flex-1 truncate",
-          panel.collapsed && "pointer-events-none",
-        )}
-      >
-        {children}
-      </motion.span>
+      {children && !panel.collapsed ? (
+        <motion.span
+          initial={false}
+          animate={{
+            opacity: panel.collapsed ? 0 : 1,
+            x: panel.collapsed ? -4 : 0,
+          }}
+          transition={
+            context.reduce
+              ? REDUCED_TRANSITION
+              : panel.collapsed
+                ? LABEL_EXIT_TRANSITION
+                : LABEL_ENTER_TRANSITION
+          }
+          aria-hidden={panel.collapsed}
+          className={cn(
+            "relative z-10 min-w-0 flex-1 truncate",
+            panel.collapsed && "hidden pointer-events-none",
+          )}
+        >
+          {children}
+        </motion.span>
+      ) : null}
       {badge && !panel.collapsed ? (
         <span className="relative z-10 shrink-0 text-xs text-muted-foreground">
           {badge}
         </span>
       ) : null}
-      {ariaExpanded !== undefined ? (
+      {ariaExpanded !== undefined && !panel.collapsed ? (
         <motion.span
           aria-hidden="true"
           initial={false}
@@ -931,8 +935,9 @@ export function AnimatedSidebarMenuButton({
   );
 
   const interactiveClassName = cn(
-    "relative flex min-h-9 w-full min-w-0 items-center gap-2.5 overflow-hidden rounded-xl px-3 text-left text-sm font-medium outline-none",
-    "text-muted-foreground transition-colors hover:text-foreground",
+    "relative flex min-h-9 w-full min-w-0 items-center justify-center overflow-hidden rounded-xl text-left text-sm font-medium outline-none transition-colors",
+    isIconOnly ? "justify-center px-0" : "justify-start gap-2.5 px-3",
+    "text-muted-foreground hover:text-foreground",
     "focus-visible:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring",
     isActive && "text-foreground",
     disabled && "cursor-not-allowed opacity-40",
