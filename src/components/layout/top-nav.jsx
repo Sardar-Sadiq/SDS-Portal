@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { useStore } from '@/context/store-context';
-import { Search, Bell, Sun, Moon, Clock } from 'lucide-react';
+import { Search, Bell, Clock, X } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
+import { ThemeToggle } from '@/components/motion/theme-toggle';
 
 export const TopNav = ({
   darkMode,
@@ -12,13 +13,28 @@ export const TopNav = ({
   onOpenCheckIn,
   onNavigateTab
 }) => {
-  const { currentUser, notifications, markNotificationAsRead, attendanceRecords } = useStore();
+  const { currentUser, notifications, markNotificationAsRead, dismissNotification, attendanceRecords } = useStore();
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const unreadNotifs = notifications.filter(n => !n.read);
   const todayStr = new Date().toISOString().split('T')[0];
   const userTodayAttendance = attendanceRecords.find(a => a.employeeId === currentUser?.employeeId && a.date === todayStr);
+
+  const handleNotificationClick = (n) => {
+    markNotificationAsRead(n.id);
+    setShowNotifications(false);
+    const titleLower = n.title.toLowerCase();
+    if (titleLower.includes('leave')) {
+      onNavigateTab('leave');
+    } else if (titleLower.includes('check-in') || titleLower.includes('attendance') || titleLower.includes('geo-fence')) {
+      onNavigateTab('attendance');
+    } else if (titleLower.includes('employee') || titleLower.includes('staff')) {
+      onNavigateTab('employees');
+    } else {
+      onNavigateTab('dashboard');
+    }
+  };
 
   return (
     <header className={`fixed top-0 right-0 z-30 h-14 bg-card/80 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-all duration-200 ease-in-out flex items-center justify-between px-4 sm:px-6 ${
@@ -49,14 +65,12 @@ export const TopNav = ({
           <span>{userTodayAttendance?.checkIn ? 'Check Out / Status' : 'GPS Check In'}</span>
         </button>
 
-        {/* Theme Toggle */}
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="p-1.5 rounded-lg text-neutral-500 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-          title={darkMode ? "Light mode" : "Dark mode"}
-        >
-          {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </button>
+        {/* BEUI Circle Blur Theme Toggle */}
+        <ThemeToggle
+          variant="circle-blur"
+          darkMode={darkMode}
+          setDarkMode={setDarkMode}
+        />
 
         {/* Notification Bell */}
         <div className="relative">
@@ -77,21 +91,36 @@ export const TopNav = ({
                 <span className="text-[10px] text-neutral-400">{unreadNotifs.length} unread</span>
               </div>
               <div className="py-2 space-y-2 max-h-64 overflow-y-auto">
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    onClick={() => markNotificationAsRead(n.id)}
-                    className={`p-2.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                      n.read ? 'bg-transparent text-neutral-500' : 'bg-neutral-50 dark:bg-neutral-900/80 font-medium text-neutral-800 dark:text-neutral-200'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <span className="font-semibold text-neutral-900 dark:text-white">{n.title}</span>
-                      <span className="text-[10px] text-neutral-400 shrink-0">{n.time}</span>
+                {notifications.length > 0 ? (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      onClick={() => handleNotificationClick(n)}
+                      className={`p-2.5 rounded-lg text-xs cursor-pointer transition-colors relative group/item ${
+                        n.read ? 'bg-transparent text-neutral-500' : 'bg-neutral-50 dark:bg-neutral-900/80 font-medium text-neutral-800 dark:text-neutral-200'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start gap-2 pr-5">
+                        <span className="font-semibold text-neutral-900 dark:text-white group-hover/item:text-primary transition-colors">{n.title}</span>
+                        <span className="text-[10px] text-neutral-400 shrink-0 font-mono">{n.time}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-400">{n.message}</p>
+                      <button
+                        type="button"
+                        aria-label="Dismiss notification"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          dismissNotification(n.id);
+                        }}
+                        className="absolute top-2 right-2 p-1 rounded-full text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-                    <p className="mt-1 text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-400">{n.message}</p>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-xs text-neutral-400">All caught up! No active notifications.</div>
+                )}
               </div>
             </div>
           )}

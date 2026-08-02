@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { useStore } from '@/context/store-context';
 import { 
@@ -15,6 +13,18 @@ import {
   PanelLeft
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import {
+  AnimatedSidebar as BEUISidebar,
+  AnimatedSidebarHeader,
+  AnimatedSidebarContent,
+  AnimatedSidebarFooter,
+  AnimatedSidebarGroup,
+  AnimatedSidebarGroupLabel,
+  AnimatedSidebarMenu,
+  AnimatedSidebarMenuItem,
+  AnimatedSidebarMenuButton,
+  useAnimatedSidebar,
+} from '@/components/motion/animated-sidebar';
 
 export const Sidebar = ({
   activeTab,
@@ -23,7 +33,6 @@ export const Sidebar = ({
   setCollapsed
 }) => {
   const { activeRole, logout, leaveRequests } = useStore();
-
   const pendingLeavesCount = leaveRequests.filter(l => l.status === 'PENDING').length;
 
   const adminNavItems = [
@@ -47,7 +56,7 @@ export const Sidebar = ({
 
   return (
     <aside
-      className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-card border-r border-neutral-200 dark:border-neutral-800 transition-all duration-200 ease-in-out ${
+      className={`fixed left-0 top-0 bottom-0 z-40 flex flex-col bg-card border-r border-neutral-200 dark:border-neutral-800 transition-all duration-300 ease-out ${
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
@@ -80,41 +89,36 @@ export const Sidebar = ({
             className="w-9 h-9 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center font-bold text-xs shadow-sm hover:opacity-90 transition-opacity"
             title="Expand Sidebar"
           >
-            SDS
+            <PanelLeft />
           </button>
         )}
       </div>
 
-      {/* Navigation Items */}
+      {/* Navigation Items with BEUI Shared Layout Hover */}
       <div className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              title={collapsed ? item.label : undefined}
-              className={`w-full flex items-center rounded-lg text-xs font-medium transition-colors ${
-                collapsed ? 'justify-center w-10 h-10 mx-auto' : 'gap-3 px-3 py-2'
-              } ${
-                isActive
-                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-sm font-semibold'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-white'
-              }`}
-            >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white dark:text-neutral-900' : 'text-neutral-500 dark:text-neutral-400'}`} />
-              {!collapsed && (
-                <span className="flex-1 text-left truncate">{item.label}</span>
-              )}
-              {!collapsed && item.badge && (
-                <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-mono">
-                  {item.badge}
-                </Badge>
-              )}
-            </button>
-          );
-        })}
+        <AnimatedSidebarGroup>
+          {!collapsed && (
+            <AnimatedSidebarGroupLabel>Navigation</AnimatedSidebarGroupLabel>
+          )}
+          <AnimatedSidebarMenu>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <AnimatedSidebarMenuItem key={item.id}>
+                  <AnimatedSidebarMenuButton
+                    isActive={isActive}
+                    icon={<Icon className="w-4 h-4" />}
+                    badge={item.badge}
+                    onSelect={() => setActiveTab(item.id)}
+                  >
+                    {!collapsed ? item.label : undefined}
+                  </AnimatedSidebarMenuButton>
+                </AnimatedSidebarMenuItem>
+              );
+            })}
+          </AnimatedSidebarMenu>
+        </AnimatedSidebarGroup>
       </div>
 
       {/* Footer Log Out */}

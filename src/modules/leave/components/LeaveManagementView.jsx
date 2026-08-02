@@ -9,6 +9,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { Plus, Download } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
+import { AnimatedNumber } from '@/components/motion/animated-number';
 
 export const LeaveManagementView = () => {
   const { currentUser, leaveRequests, activeRole, reviewLeave, exportAttendanceExcel } = useStore();
@@ -34,6 +35,8 @@ export const LeaveManagementView = () => {
     setAdminNote('');
   };
 
+  const pendingCount = leaveRequests.filter(l => l.status === 'PENDING').length;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -53,24 +56,30 @@ export const LeaveManagementView = () => {
         </div>
       </div>
 
-      {/* 4 Identical Quota & Pending Cards responding seamlessly to theme toggle */}
+      {/* 4 Identical Quota & Pending Cards with BEUI AnimatedNumber */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-stretch">
         <Card className="p-4 h-full flex flex-col justify-between">
           <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">Casual Leave Balance</span>
-          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{currentUser?.leaveBalance.casual} days</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
+            <AnimatedNumber value={currentUser?.leaveBalance.casual || 0} /> <span className="text-xs font-normal text-neutral-400">days</span>
+          </p>
         </Card>
         <Card className="p-4 h-full flex flex-col justify-between">
           <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">Sick Leave Balance</span>
-          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{currentUser?.leaveBalance.sick} days</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
+            <AnimatedNumber value={currentUser?.leaveBalance.sick || 0} /> <span className="text-xs font-normal text-neutral-400">days</span>
+          </p>
         </Card>
         <Card className="p-4 h-full flex flex-col justify-between">
           <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">Annual Paid Leave</span>
-          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{currentUser?.leaveBalance.annual} days</p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
+            <AnimatedNumber value={currentUser?.leaveBalance.annual || 0} /> <span className="text-xs font-normal text-neutral-400">days</span>
+          </p>
         </Card>
         <Card className="p-4 h-full flex flex-col justify-between">
           <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">Total Pending Requests</span>
           <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
-            {leaveRequests.filter(l => l.status === 'PENDING').length}
+            <AnimatedNumber value={pendingCount} />
           </p>
         </Card>
       </div>

@@ -2,10 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_EMPLOYEES, INITIAL_ATTENDANCE, INITIAL_LEAVES, INITIAL_REMARKS, INITIAL_OFFICE_SETTINGS } from '@/lib/mock-data';
+import { useAnimatedToastStack } from '@/components/motion/animated-toast-stack';
 
 const StoreContext = createContext(undefined);
 
 export const StoreProvider = ({ children }) => {
+  const { toasts, showToast, dismissToast, clearToasts } = useAnimatedToastStack();
   const [currentUser, setCurrentUser] = useState(INITIAL_EMPLOYEES[0]);
   const [activeRole, setActiveRole] = useState(INITIAL_EMPLOYEES[0].role);
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
@@ -17,19 +19,57 @@ export const StoreProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([
     {
       id: "notif-1",
-      title: "New Leave Application",
-      message: "Elena Rostova applied for 2 days of Casual Leave.",
+      title: "Elena Rostova • Leave Request",
+      message: "Applied for 2 days of Casual Leave. Awaiting admin review.",
       time: "10 mins ago",
       read: false,
-      type: "INFO"
+      type: "INFO",
+      targetRole: "ADMIN"
     },
     {
       id: "notif-2",
-      title: "Attendance SLA Check",
-      message: "4 employees checked in before 09:00 AM SLA today.",
+      title: "Attendance SLA Target",
+      message: "4 out of 5 staff checked in on-time before 09:00 AM.",
       time: "1 hour ago",
       read: true,
-      type: "SUCCESS"
+      type: "SUCCESS",
+      targetRole: "ADMIN"
+    },
+    {
+      id: "notif-3",
+      title: "GPS Geo-Fence System Active",
+      message: "HQ geofence radius locked within 500m.",
+      time: "Today",
+      read: true,
+      type: "INFO",
+      targetRole: "ADMIN"
+    },
+    {
+      id: "notif-4",
+      title: "GPS Geo-Fence Verified",
+      message: "Location verified within 50m of office campus.",
+      time: "Today",
+      read: false,
+      type: "SUCCESS",
+      targetRole: "EMPLOYEE"
+    },
+    {
+      id: "notif-5",
+      title: "Leave Status Pending",
+      message: "Your Casual leave application is currently under admin review.",
+      time: "2 hours ago",
+      read: false,
+      type: "INFO",
+      targetRole: "EMPLOYEE"
+    },
+    {
+      id: "notif-6",
+      title: "Monthly Attendance Record",
+      message: "21 working days recorded with 98% SLA compliance.",
+      time: "Yesterday",
+      read: true,
+      type: "SUCCESS",
+      targetRole: "EMPLOYEE"
     }
   ]);
 
@@ -115,6 +155,34 @@ export const StoreProvider = ({ children }) => {
 
     setAttendanceRecords(prev => [newRecord, ...prev.filter(r => !(r.employeeId === currentUser.employeeId && r.date === todayStr))]);
 
+    setNotifications(prev => [
+      {
+        id: `notif-${Date.now()}-emp`,
+        title: status === 'LATE' ? "Check-In Recorded (Late)" : "GPS Check-In Verified",
+        message: `Checked in at ${timeStr}. Location verified (${distanceMeters}m from office).`,
+        time: "Just now",
+        read: false,
+        type: status === 'LATE' ? "INFO" : "SUCCESS",
+        targetUser: currentUser.employeeId
+      },
+      {
+        id: `notif-${Date.now()}-admin`,
+        title: `${currentUser.name} Checked In`,
+        message: `${currentUser.name} (${currentUser.department}) checked in at ${timeStr} [${status}].`,
+        time: "Just now",
+        read: false,
+        type: status === 'LATE' ? "INFO" : "SUCCESS",
+        targetRole: "ADMIN"
+      },
+      ...prev
+    ]);
+
+    showToast({
+      title: status === 'LATE' ? "Checked In (Late)" : "GPS Check-In Verified",
+      description: `Successfully checked in at ${timeStr}. Distance from office: ${distanceMeters}m.`,
+      status: status === 'LATE' ? "info" : "success"
+    });
+
     return {
       success: true,
       message: `Successfully checked in at ${timeStr}. Status: ${status} (${distanceMeters}m from office).`
@@ -178,14 +246,29 @@ export const StoreProvider = ({ children }) => {
     };
 
     setLeaveRequests(prev => [newLeave, ...prev]);
+    showToast({
+      title: "Leave Request Submitted",
+      description: `Submitted ${leaveData.leaveType} leave application for ${leaveData.totalDays} day(s).`,
+      status: "success"
+    });
     setNotifications(prev => [
       {
-        id: `notif-${Date.now()}`,
-        title: "Leave Requested",
-        message: `${currentUser.name} submitted a leave request for ${leaveData.totalDays} day(s).`,
+        id: `notif-${Date.now()}-admin`,
+        title: `${currentUser.name} • Leave Requested`,
+        message: `Submitted ${leaveData.leaveType} leave for ${leaveData.totalDays} day(s).`,
         time: "Just now",
         read: false,
-        type: "INFO"
+        type: "INFO",
+        targetRole: "ADMIN"
+      },
+      {
+        id: `notif-${Date.now()}-emp`,
+        title: "Leave Application Submitted",
+        message: `Your ${leaveData.leaveType} leave application was submitted for admin review.`,
+        time: "Just now",
+        read: false,
+        type: "INFO",
+        targetUser: currentUser.employeeId
       },
       ...prev
     ]);
@@ -193,6 +276,8 @@ export const StoreProvider = ({ children }) => {
 
   const reviewLeave = (leaveId, status, adminNote) => {
     if (activeRole !== 'ADMIN') return;
+
+    const targetReq = leaveRequests.find(r => r.id === leaveId);
 
     setLeaveRequests(prev => prev.map(req => {
       if (req.id === leaveId) {
@@ -206,6 +291,26 @@ export const StoreProvider = ({ children }) => {
       }
       return req;
     }));
+
+    if (targetReq) {
+      setNotifications(prev => [
+        {
+          id: `notif-${Date.now()}`,
+          title: `Leave Application ${status}`,
+          message: `Your leave request for ${targetReq.startDate} to ${targetReq.endDate} was ${status.toLowerCase()} by Admin.`,
+          time: "Just now",
+          read: false,
+          type: status === 'APPROVED' ? "SUCCESS" : "ERROR",
+          targetUser: targetReq.employeeId
+        },
+        ...prev
+      ]);
+      showToast({
+        title: `Leave Request ${status}`,
+        description: `Leave request for ${targetReq.employeeName} has been ${status.toLowerCase()}.`,
+        status: status === 'APPROVED' ? "success" : "info"
+      });
+    }
   };
 
   const addEmployee = (employeeData) => {
@@ -286,6 +391,10 @@ export const StoreProvider = ({ children }) => {
 
   const markNotificationAsRead = (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const dismissNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   // Export Attendance & Leave Ledger to Excel CSV format
@@ -379,7 +488,23 @@ export const StoreProvider = ({ children }) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    showToast({
+      title: "Excel Ledger Exported",
+      description: "SDS EMS attendance & leave report downloaded successfully as CSV.",
+      status: "success"
+    });
   };
+
+  const roleNotifications = notifications.filter(n => {
+    if (n.targetUser) {
+      return n.targetUser === currentUser?.employeeId;
+    }
+    if (n.targetRole) {
+      return n.targetRole === activeRole;
+    }
+    return true;
+  });
 
   return (
     <StoreContext.Provider
@@ -391,8 +516,11 @@ export const StoreProvider = ({ children }) => {
         leaveRequests,
         remarks,
         officeSettings,
-        notifications,
+        notifications: roleNotifications,
         selectedEmployeeId,
+        toasts,
+        showToast,
+        dismissToast,
         loginWithGoogle,
         logout,
         setSelectedEmployeeId,
@@ -408,6 +536,7 @@ export const StoreProvider = ({ children }) => {
         deleteHoliday,
         updateSettings,
         markNotificationAsRead,
+        dismissNotification,
         exportAttendanceExcel
       }}
     >

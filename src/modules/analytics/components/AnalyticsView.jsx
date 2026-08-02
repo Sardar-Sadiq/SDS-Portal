@@ -4,6 +4,7 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
+import { AnimatedNumber } from '@/components/motion/animated-number';
 
 export const AnalyticsView = () => {
   const monthlyAttendanceData = [
@@ -45,12 +46,12 @@ export const AnalyticsView = () => {
         </Card>
         <Card className="p-4">
           <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase block">Monthly Attendance SLA Rate</span>
-          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 font-mono">98.2%</p>
+          <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1 font-mono"><AnimatedNumber value={98.2} decimals={1} />%</p>
           <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">+1.8% vs last month</span>
         </Card>
         <Card className="p-4">
           <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase block">Total Leave Days Granted</span>
-          <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1 font-mono">7 Days</p>
+          <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1 font-mono"><AnimatedNumber value={7} /> Days</p>
           <span className="text-[10px] text-neutral-400 font-mono">0 pending approvals</span>
         </Card>
       </div>

@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { AddRemarkModal } from '@/modules/remarks/components/AddRemarkModal';
 import { Mail, Phone, MapPin, Award, Plus, Pencil } from 'lucide-react';
+import { AnimatedNumber } from '@/components/motion/animated-number';
 
 export const ProfileView = () => {
   const { currentUser, remarks, activeRole } = useStore();
@@ -76,7 +77,7 @@ export const ProfileView = () => {
             <div className="flex justify-between py-2 border-b border-neutral-100 dark:border-neutral-800/80">
               <span className="text-neutral-500">Assigned Geofence Radius:</span>
               <span className="font-semibold text-neutral-900 dark:text-white flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-neutral-400" /> {currentUser.officeLocation.radiusMeters}m
+                <MapPin className="w-3.5 h-3.5 text-neutral-400" /> <AnimatedNumber value={currentUser.officeLocation.radiusMeters} />m
               </span>
             </div>
           </CardContent>
@@ -91,17 +92,17 @@ export const ProfileView = () => {
             <div className="grid grid-cols-3 gap-3 text-center my-auto">
               <div className="p-3.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase block">Casual</span>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{currentUser.leaveBalance.casual}</p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser.leaveBalance.casual || 0} /></p>
                 <span className="text-[10px] text-neutral-400">days</span>
               </div>
               <div className="p-3.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase block">Sick</span>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{currentUser.leaveBalance.sick}</p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser.leaveBalance.sick || 0} /></p>
                 <span className="text-[10px] text-neutral-400">days</span>
               </div>
               <div className="p-3.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase block">Annual</span>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">{currentUser.leaveBalance.annual}</p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser.leaveBalance.annual || 0} /></p>
                 <span className="text-[10px] text-neutral-400">days</span>
               </div>
             </div>

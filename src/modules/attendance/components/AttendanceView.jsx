@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Clock, Search, MapPin, Download, Filter } from 'lucide-react';
+import { AnimatedNumber } from '@/components/motion/animated-number';
 
 export const AttendanceView = ({ onOpenCheckIn }) => {
   const { attendanceRecords, activeRole, exportAttendanceExcel } = useStore();
@@ -90,7 +91,7 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Attendance Log Table</CardTitle>
-              <CardDescription>Showing {filteredRecords.length} recorded entries</CardDescription>
+              <CardDescription>Showing <AnimatedNumber value={filteredRecords.length} /> recorded entries</CardDescription>
             </div>
             <Button onClick={exportAttendanceExcel} variant="ghost" size="sm" className="text-xs">
               <Download className="w-3.5 h-3.5" /> Export Data

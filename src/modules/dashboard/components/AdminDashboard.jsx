@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Users, UserCheck, UserX, Clock, CalendarOff, AlertTriangle, UserPlus, ChevronRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { AnimatedNumber } from '@/components/motion/animated-number';
 
 export const AdminDashboard = ({
   onNavigateTab,
@@ -71,7 +72,7 @@ export const AdminDashboard = ({
             <span className="text-[10px] font-mono font-medium uppercase">Total Staff</span>
             <Users className="w-3.5 h-3.5 text-neutral-400" />
           </div>
-          <p className="text-lg font-bold text-neutral-900 dark:text-white">{totalEmployees}</p>
+          <p className="text-lg font-bold text-neutral-900 dark:text-white"><AnimatedNumber value={totalEmployees} /></p>
         </Card>
 
         <Card className="p-3.5">
@@ -79,7 +80,7 @@ export const AdminDashboard = ({
             <span className="text-[10px] font-mono font-medium uppercase">Present Today</span>
             <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
           </div>
-          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{presentToday}</p>
+          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400"><AnimatedNumber value={presentToday} /></p>
         </Card>
 
         <Card className="p-3.5">
@@ -87,7 +88,7 @@ export const AdminDashboard = ({
             <span className="text-[10px] font-mono font-medium uppercase">Late Arrivals</span>
             <Clock className="w-3.5 h-3.5 text-amber-500" />
           </div>
-          <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{lateToday}</p>
+          <p className="text-lg font-bold text-amber-600 dark:text-amber-400"><AnimatedNumber value={lateToday} /></p>
         </Card>
 
         <Card className="p-3.5">
@@ -95,7 +96,7 @@ export const AdminDashboard = ({
             <span className="text-[10px] font-mono font-medium uppercase">On Leave</span>
             <CalendarOff className="w-3.5 h-3.5 text-blue-500" />
           </div>
-          <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{onLeaveToday}</p>
+          <p className="text-lg font-bold text-blue-600 dark:text-blue-400"><AnimatedNumber value={onLeaveToday} /></p>
         </Card>
 
         <Card className="p-3.5">
@@ -103,7 +104,7 @@ export const AdminDashboard = ({
             <span className="text-[10px] font-mono font-medium uppercase">Absent</span>
             <UserX className="w-3.5 h-3.5 text-rose-500" />
           </div>
-          <p className="text-lg font-bold text-rose-600 dark:text-rose-400">{absentToday}</p>
+          <p className="text-lg font-bold text-rose-600 dark:text-rose-400"><AnimatedNumber value={absentToday} /></p>
         </Card>
 
         <Card className="p-3.5">
@@ -111,7 +112,7 @@ export const AdminDashboard = ({
             <span className="text-[10px] font-mono font-medium uppercase">Pending Leaves</span>
             <AlertTriangle className="w-3.5 h-3.5 text-purple-500" />
           </div>
-          <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{pendingLeaves.length}</p>
+          <p className="text-lg font-bold text-purple-600 dark:text-purple-400"><AnimatedNumber value={pendingLeaves.length} /></p>
         </Card>
       </div>
 

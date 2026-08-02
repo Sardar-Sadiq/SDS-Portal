@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/context/store-context';
 import { LoginView } from '@/modules/auth/components/LoginView';
@@ -18,9 +16,11 @@ import { ProfileView } from '@/modules/profile/components/ProfileView';
 import { GeoCheckInModal } from '@/modules/attendance/components/GeoCheckInModal';
 import { AddEmployeeModal } from '@/modules/employees/components/AddEmployeeModal';
 import { ApplyLeaveModal } from '@/modules/leave/components/ApplyLeaveModal';
+import { NotificationStack } from '@/components/motion/notification-stack';
+import { AnimatedToastStack } from '@/components/motion/animated-toast-stack';
 
-export default function Home() {
-  const { currentUser, activeRole, selectedEmployeeId, setSelectedEmployeeId } = useStore();
+export function App() {
+  const { currentUser, activeRole, selectedEmployeeId, setSelectedEmployeeId, toasts, dismissToast, notifications, dismissNotification } = useStore();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
@@ -28,6 +28,26 @@ export default function Home() {
   const [isCheckInModalOpen, setIsCheckInModalOpen] = useState(false);
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
   const [isApplyLeaveModalOpen, setIsApplyLeaveModalOpen] = useState(false);
+
+  const notificationItems = notifications.map(n => ({
+    id: n.id,
+    title: n.title,
+    description: n.message,
+    trailing: n.time
+  }));
+
+  const handleNotificationClick = (item) => {
+    const titleLower = item.title.toLowerCase();
+    if (titleLower.includes('leave')) {
+      setActiveTab('leave');
+    } else if (titleLower.includes('check-in') || titleLower.includes('attendance') || titleLower.includes('geo-fence')) {
+      setActiveTab('attendance');
+    } else if (titleLower.includes('employee') || titleLower.includes('staff')) {
+      setActiveTab('employees');
+    } else {
+      setActiveTab('dashboard');
+    }
+  };
 
   useEffect(() => {
     if (darkMode) {
@@ -110,7 +130,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
+    <div className="min-h-screen bg-background text-foreground flex font-sans">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -126,11 +146,10 @@ export default function Home() {
         onNavigateTab={setActiveTab}
       />
 
-      {/* Main container with pt-20 (80px) to clear fixed h-14 (56px) TopNav header */}
+      {/* Main container with pt-20 to clear fixed header */}
       <main
-        className={`flex-1 pt-20 pb-10 px-4 sm:px-6 md:px-8 transition-all duration-200 ease-in-out ${
-          sidebarCollapsed ? 'ml-16' : 'ml-64'
-        }`}
+        className={`flex-1 pt-20 pb-10 px-4 sm:px-6 md:px-8 transition-all duration-200 ease-in-out ${sidebarCollapsed ? 'ml-16' : 'ml-64'
+          }`}
       >
         <div className="max-w-7xl mx-auto space-y-6">
           {renderActiveView()}
@@ -151,6 +170,28 @@ export default function Home() {
         isOpen={isApplyLeaveModalOpen}
         onClose={() => setIsApplyLeaveModalOpen(false)}
       />
+
+      {/* BEUI Notification Stack (Fixed at Bottom Right) */}
+      <div className="fixed bottom-6 right-6 z-40 hidden md:block">
+        <NotificationStack
+          items={notificationItems}
+          onDismiss={dismissNotification}
+          onItemClick={handleNotificationClick}
+          onViewAll={() => setActiveTab(activeRole === 'ADMIN' ? 'leave' : 'attendance')}
+          collapsedLabel={`${notificationItems.length} Notifications`}
+          expandedLabel={activeRole === 'ADMIN' ? "Review Requests" : "View Logs"}
+        />
+      </div>
+
+      {/* BEUI Animated Toast Stack */}
+      <AnimatedToastStack
+        toasts={toasts}
+        onDismiss={dismissToast}
+        position="bottom-right"
+        fixed
+      />
     </div>
   );
 }
+
+export default App;

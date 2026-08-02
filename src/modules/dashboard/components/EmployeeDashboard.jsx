@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Calendar, Award, User, ChevronRight } from 'lucide-react';
+import { AnimatedNumber } from '@/components/motion/animated-number';
 
 export const EmployeeDashboard = ({
   onNavigateTab,
@@ -97,15 +98,15 @@ export const EmployeeDashboard = ({
             <div className="grid grid-cols-3 gap-2 text-center my-auto">
               <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/80">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase">Casual</span>
-                <p className="text-lg font-bold text-neutral-900 dark:text-white">{currentUser?.leaveBalance.casual}</p>
+                <p className="text-lg font-bold text-neutral-900 dark:text-white"><AnimatedNumber value={currentUser?.leaveBalance.casual || 0} /></p>
               </div>
               <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/80">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase">Sick</span>
-                <p className="text-lg font-bold text-neutral-900 dark:text-white">{currentUser?.leaveBalance.sick}</p>
+                <p className="text-lg font-bold text-neutral-900 dark:text-white"><AnimatedNumber value={currentUser?.leaveBalance.sick || 0} /></p>
               </div>
               <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/80">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase">Annual</span>
-                <p className="text-lg font-bold text-neutral-900 dark:text-white">{currentUser?.leaveBalance.annual}</p>
+                <p className="text-lg font-bold text-neutral-900 dark:text-white"><AnimatedNumber value={currentUser?.leaveBalance.annual || 0} /></p>
               </div>
             </div>
           </CardContent>
