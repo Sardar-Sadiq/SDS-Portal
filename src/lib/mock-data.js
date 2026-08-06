@@ -1,7 +1,7 @@
 export const INITIAL_OFFICE_SETTINGS = {
   companyName: "Spirit Data Solutions",
-  officeStartTime: "09:00",
-  officeEndTime: "18:00",
+  officeStartTime: "09:30",
+  officeEndTime: "17:30",
   gracePeriodMinutes: 15,
   geoFence: {
     address: "SDS Tech Tower, Suite 400, Financial District, CA",

@@ -3,13 +3,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_EMPLOYEES, INITIAL_ATTENDANCE, INITIAL_LEAVES, INITIAL_REMARKS, INITIAL_OFFICE_SETTINGS } from '@/lib/mock-data';
 import { useAnimatedToastStack } from '@/components/motion/animated-toast-stack';
+import { supabase } from '@/lib/supabaseClient';
 
 const StoreContext = createContext(undefined);
 
 export const StoreProvider = ({ children }) => {
   const { toasts, showToast, dismissToast, clearToasts } = useAnimatedToastStack();
-  const [currentUser, setCurrentUser] = useState(INITIAL_EMPLOYEES[0]);
-  const [activeRole, setActiveRole] = useState(INITIAL_EMPLOYEES[0].role);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [activeRole, setActiveRole] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
   const [attendanceRecords, setAttendanceRecords] = useState(INITIAL_ATTENDANCE);
   const [leaveRequests, setLeaveRequests] = useState(INITIAL_LEAVES);
@@ -73,26 +75,231 @@ export const StoreProvider = ({ children }) => {
     }
   ]);
 
+  // Sync session with Supabase Auth on mount & on auth changes
   useEffect(() => {
-    if (currentUser) {
-      setActiveRole(currentUser.role);
-    }
-  }, [currentUser]);
+    let isMounted = true;
 
-  const loginWithGoogle = async (email) => {
-    const targetEmail = email || 'sardar.sadiq@spiritdatasolutions.com';
-    const match = employees.find(e => e.email.toLowerCase() === targetEmail.toLowerCase());
-    
-    if (match) {
-      setCurrentUser(match);
-      setActiveRole(match.role);
-      return true;
+    const syncSupabaseSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const userEmail = session.user.email?.trim().toLowerCase();
+
+          // Try querying `SDS_Employees` first, then fallback to `employees`
+          let tableName = 'SDS_Employees';
+          let employee = null;
+
+          const { data: sdsData } = await supabase
+            .from('SDS_Employees')
+            .select('*');
+
+          if (sdsData && sdsData.length > 0) {
+            employee = sdsData.find(emp => emp.is_active !== false && emp.email?.trim().toLowerCase() === userEmail);
+          }
+
+          if (employee && isMounted) {
+            // Update auth_id on first login if NULL
+            if (!employee.auth_id) {
+              await supabase
+                .from(tableName)
+                .update({ auth_id: session.user.id })
+                .ilike('email', userEmail);
+              employee.auth_id = session.user.id;
+            }
+
+            const roleUpper = (employee.role || 'EMPLOYEE').toUpperCase();
+            const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
+            const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
+
+            const userObj = {
+              id: employee.id || session.user.id,
+              employeeId: employee.id || session.user.id,
+              auth_id: session.user.id,
+              email: employee.email,
+              name: employee.full_name || session.user.email,
+              full_name: employee.full_name || session.user.email,
+              role: roleUpper,
+              department: employee.department || 'Developer',
+              designation: employee.designation || (roleUpper === 'ADMIN' ? 'Manager' : 'Software Engineer'),
+              phone: employee.phone || '+91 98765 43210',
+              manager: employee.manager || 'Sardar Sadiq',
+              joiningDate: employee.joiningDate || '2024-01-15',
+              avatar: employee.avatar || '',
+              officeLocation: employee.officeLocation || defaultOfficeLocation,
+              leaveBalance: employee.leaveBalance || defaultLeaveBalance
+            };
+            setCurrentUser(userObj);
+            setActiveRole(roleUpper);
+          } else if (isMounted) {
+            await supabase.auth.signOut();
+            setCurrentUser(null);
+            setActiveRole(null);
+          }
+        } else if (isMounted) {
+          setCurrentUser(null);
+          setActiveRole(null);
+        }
+      } catch (err) {
+        console.error('StoreProvider: Supabase session sync error', err);
+      } finally {
+        if (isMounted) {
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    syncSupabaseSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        if (isMounted) {
+          setCurrentUser(null);
+          setActiveRole(null);
+          setAuthLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  // ── Attendance: fetch from Supabase when currentUser is known ───────────────
+  // Runs whenever currentUser changes (login → sets records; logout → clears them).
+  // Optimistic strategy: local state is the source of truth for immediate UI
+  // responsiveness. Supabase is the source of truth for persistence.
+  useEffect(() => {
+    if (!currentUser?.employeeId) return;
+
+    let isMounted = true;
+    const isAdmin = (currentUser.role || '').toUpperCase() === 'ADMIN';
+
+    const fetchAttendance = async () => {
+      try {
+        // Admins see all records for the last 90 days; employees see only their own.
+        // Limiting to 90 days prevents an unbounded scan as the table grows.
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        const fromDate = ninetyDaysAgo.toISOString().split('T')[0];
+
+        let query = supabase
+          .from('SDS_Attendance')
+          .select('*')
+          .gte('date', fromDate)
+          .order('date', { ascending: false })
+          .order('created_at', { ascending: false });
+
+        // Employees only see their own records
+        if (!isAdmin) {
+          query = query.eq('employee_id', currentUser.employeeId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error('StoreProvider: Failed to fetch SDS_Attendance —', error.message);
+          // Keep the existing mock data as a fallback — don't wipe the UI
+          return;
+        }
+
+        if (!isMounted || !data) return;
+
+        // Map DB snake_case columns back to the camelCase shape the UI expects
+        const mapped = data.map((row) => ({
+          id: row.id,
+          employeeId: row.employee_id,
+          employeeName: row.employee_name,
+          avatar: row.avatar ?? '',
+          department: row.department ?? '',
+          date: row.date,
+          checkIn: row.check_in ?? null,
+          checkOut: row.check_out ?? null,
+          workingHours: row.working_hours ?? 0,
+          status: row.status,
+          locationVerified: row.location_verified,
+          coordinates: {
+            lat: row.latitude ? Number(row.latitude) : null,
+            lng: row.longitude ? Number(row.longitude) : null,
+          },
+          distanceFromOfficeMeters: row.distance_from_office_meters ?? null,
+          accuracyMeters: row.accuracy_meters ?? null,
+          officeName: row.office_name ?? null,
+          isLate: row.is_late,
+        }));
+
+        setAttendanceRecords(mapped);
+      } catch (err) {
+        console.error('StoreProvider: Unexpected error fetching attendance —', err);
+      }
+    };
+
+    fetchAttendance();
+
+    return () => { isMounted = false; };
+  }, [currentUser?.employeeId]);
+
+  const setAuthenticatedUser = (payload) => {
+    if (!payload) {
+      setCurrentUser(null);
+      setActiveRole(null);
+      setAuthLoading(false);
+      return;
     }
-    return false;
+    const roleUpper = (payload.role || 'EMPLOYEE').toUpperCase();
+    const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
+    const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
+
+    const userObj = {
+      id: payload.id,
+      employeeId: payload.id,
+      auth_id: payload.auth_id || payload.id,
+      email: payload.email,
+      name: payload.full_name || payload.email,
+      full_name: payload.full_name || payload.email,
+      role: roleUpper,
+      department: payload.department || 'Developer',
+      designation: payload.designation || (roleUpper === 'ADMIN' ? 'Manager' : 'Software Engineer'),
+      phone: payload.phone || '+91 98765 43210',
+      manager: payload.manager || 'Sardar Sadiq',
+      joiningDate: payload.joiningDate || '2024-01-15',
+      avatar: payload.avatar || '',
+      officeLocation: payload.officeLocation || defaultOfficeLocation,
+      leaveBalance: payload.leaveBalance || defaultLeaveBalance
+    };
+    setCurrentUser(userObj);
+    setActiveRole(roleUpper);
+    setAuthLoading(false);
   };
 
-  const logout = () => {
+  const clearAuth = () => {
     setCurrentUser(null);
+    setActiveRole(null);
+    setAuthLoading(false);
+  };
+
+  const loginWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+    if (error) {
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('StoreProvider: logout error', err);
+    }
+    setCurrentUser(null);
+    setActiveRole(null);
+    setAuthLoading(false);
   };
 
   const checkIn = (coords) => {
@@ -105,27 +312,16 @@ export const StoreProvider = ({ children }) => {
       return { success: false, message: `You have already checked in today at ${existing.checkIn}.` };
     }
 
-    const userLat = coords?.lat ?? officeSettings.geoFence.lat;
-    const userLng = coords?.lng ?? officeSettings.geoFence.lng;
+    const userLat = coords?.lat ?? null;
+    const userLng = coords?.lng ?? null;
 
-    const R = 6371e3;
-    const φ1 = (userLat * Math.PI) / 180;
-    const φ2 = (officeSettings.geoFence.lat * Math.PI) / 180;
-    const Δφ = ((officeSettings.geoFence.lat - userLat) * Math.PI) / 180;
-    const Δλ = ((officeSettings.geoFence.lng - userLng) * Math.PI) / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distanceMeters = Math.round(R * c);
-
-    if (distanceMeters > officeSettings.geoFence.radiusMeters) {
-      return {
-        success: false,
-        message: `GPS Geo-fence error: You are ${distanceMeters}m away from office. Maximum allowed radius is ${officeSettings.geoFence.radiusMeters}m.`
-      };
-    }
+    // If the modal (GeoCheckInModal) already verified the user's location against
+    // the DB-backed office_locations table, trust that result directly.
+    // coords.distanceFromOfficeMeters is set by resolveNearestOffice() in geofence.js.
+    // Re-computing against officeSettings.geoFence here would compare against the
+    // local mock coordinates (which differ from the real office) and silently reject
+    // every legitimate check-in.
+    const distanceMeters = coords?.distanceFromOfficeMeters ?? 0;
 
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
@@ -150,10 +346,51 @@ export const StoreProvider = ({ children }) => {
       locationVerified: true,
       coordinates: { lat: userLat, lng: userLng },
       distanceFromOfficeMeters: distanceMeters,
+      // Audit fields — preserved on the record so Admin can review disputed check-ins.
+      // accuracyMeters: how precise the GPS fix was (higher = less precise).
+      // officeName: which branch the check-in was resolved against (multi-branch support).
+      accuracyMeters: coords?.accuracyMeters ?? null,
+      officeName: coords?.officeName ?? null,
       isLate
     };
 
+    // 1. Optimistic local update — UI reflects the check-in immediately
     setAttendanceRecords(prev => [newRecord, ...prev.filter(r => !(r.employeeId === currentUser.employeeId && r.date === todayStr))]);
+
+    // 2. Persist to Supabase — map JS camelCase → DB snake_case.
+    //    Using upsert with the (employee_id, date) conflict key so re-opens of
+    //    the modal don't create duplicate rows if the user refreshes mid-flow.
+    supabase
+      .from('SDS_Attendance')
+      .upsert(
+        {
+          employee_id: currentUser.employeeId,
+          employee_name: currentUser.name,
+          avatar: currentUser.avatar ?? null,
+          department: currentUser.department ?? null,
+          date: todayStr,
+          check_in: timeStr,
+          check_out: null,
+          working_hours: 0,
+          status: status,
+          is_late: isLate,
+          location_verified: true,
+          latitude: userLat ?? null,
+          longitude: userLng ?? null,
+          distance_from_office_meters: distanceMeters ?? null,
+          accuracy_meters: coords?.accuracyMeters ?? null,
+          office_name: coords?.officeName ?? null,
+        },
+        { onConflict: 'employee_id,date' }
+      )
+      .then(({ error }) => {
+        if (error) {
+          // Log but don't throw — local state is already updated. The user
+          // sees a successful check-in in the UI; the admin should investigate
+          // the Supabase error separately.
+          console.error('StoreProvider: Failed to persist check-in to Supabase —', error.message);
+        }
+      });
 
     setNotifications(prev => [
       {
@@ -219,7 +456,25 @@ export const StoreProvider = ({ children }) => {
       workingHours: hoursWorked
     };
 
+    // 1. Optimistic local update
     setAttendanceRecords(updated);
+
+    // 2. Persist check-out to Supabase — UPDATE the existing row for today.
+    //    We update by (employee_id, date) rather than by uuid so we don't need
+    //    to thread the DB-generated id back through the local record.
+    supabase
+      .from('SDS_Attendance')
+      .update({
+        check_out: timeStr,
+        working_hours: hoursWorked,
+      })
+      .eq('employee_id', currentUser.employeeId)
+      .eq('date', todayStr)
+      .then(({ error }) => {
+        if (error) {
+          console.error('StoreProvider: Failed to persist check-out to Supabase —', error.message);
+        }
+      });
 
     return {
       success: true,
@@ -421,11 +676,19 @@ export const StoreProvider = ({ children }) => {
       "Leave Reason"
     ]);
 
+    const targetAttendance = activeRole === 'ADMIN'
+      ? attendanceRecords
+      : attendanceRecords.filter(a => a.employeeId === currentUser?.employeeId);
+
+    const targetLeaves = activeRole === 'ADMIN'
+      ? leaveRequests
+      : leaveRequests.filter(l => l.employeeId === currentUser?.employeeId);
+
     // 1. Compile attendance records
-    attendanceRecords.forEach(rec => {
+    targetAttendance.forEach(rec => {
       const emp = employees.find(e => e.employeeId === rec.employeeId);
       // Check matching leave for that date
-      const matchingLeave = leaveRequests.find(l => 
+      const matchingLeave = targetLeaves.find(l => 
         l.employeeId === rec.employeeId && 
         l.status === 'APPROVED' &&
         rec.date >= l.startDate && 
@@ -452,9 +715,9 @@ export const StoreProvider = ({ children }) => {
     });
 
     // 2. Also add employees who took leaves on dates not in attendance table
-    leaveRequests.filter(l => l.status === 'APPROVED').forEach(leave => {
+    targetLeaves.filter(l => l.status === 'APPROVED').forEach(leave => {
       const emp = employees.find(e => e.employeeId === leave.employeeId);
-      const existsInAtt = attendanceRecords.some(a => a.employeeId === leave.employeeId && a.date >= leave.startDate && a.date <= leave.endDate);
+      const existsInAtt = targetAttendance.some(a => a.employeeId === leave.employeeId && a.date >= leave.startDate && a.date <= leave.endDate);
       
       if (!existsInAtt) {
         rows.push([
@@ -511,6 +774,9 @@ export const StoreProvider = ({ children }) => {
       value={{
         currentUser,
         activeRole,
+        authLoading,
+        setAuthenticatedUser,
+        clearAuth,
         employees,
         attendanceRecords,
         leaveRequests,

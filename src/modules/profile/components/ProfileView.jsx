@@ -77,7 +77,7 @@ export const ProfileView = () => {
             <div className="flex justify-between py-2 border-b border-neutral-100 dark:border-neutral-800/80">
               <span className="text-neutral-500">Assigned Geofence Radius:</span>
               <span className="font-semibold text-neutral-900 dark:text-white flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-neutral-400" /> <AnimatedNumber value={currentUser.officeLocation.radiusMeters} />m
+                <MapPin className="w-3.5 h-3.5 text-neutral-400" /> <AnimatedNumber value={currentUser?.officeLocation?.radiusMeters ?? 500} />m
               </span>
             </div>
           </CardContent>
@@ -92,17 +92,17 @@ export const ProfileView = () => {
             <div className="grid grid-cols-3 gap-3 text-center my-auto">
               <div className="p-3.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase block">Casual</span>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser.leaveBalance.casual || 0} /></p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser?.leaveBalance?.casual ?? 12} /></p>
                 <span className="text-[10px] text-neutral-400">days</span>
               </div>
               <div className="p-3.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase block">Sick</span>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser.leaveBalance.sick || 0} /></p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser?.leaveBalance?.sick ?? 8} /></p>
                 <span className="text-[10px] text-neutral-400">days</span>
               </div>
               <div className="p-3.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase block">Annual</span>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser.leaveBalance.annual || 0} /></p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser?.leaveBalance?.annual ?? 15} /></p>
                 <span className="text-[10px] text-neutral-400">days</span>
               </div>
             </div>
