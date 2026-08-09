@@ -14,18 +14,21 @@ import {
   Calendar, 
   Award, 
   Plus,
-  Pencil
+  Pencil,
+  Trash2
 } from 'lucide-react';
 
+import { isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
+
 export const EmployeeDetailsView = ({ employeeId, onBack }) => {
-  const { employees, attendanceRecords, remarks, activeRole } = useStore();
+  const { employees, attendanceRecords, remarks, activeRole, officeSettings, deleteRemark } = useStore();
   const [isRemarkModalOpen, setIsRemarkModalOpen] = useState(false);
   const [editingRemark, setEditingRemark] = useState(null);
 
-  const emp = employees.find(e => e.id === employeeId || e.employeeId === employeeId) || employees[1];
+  const emp = employees.find(e => e.id === employeeId || e.employeeId === employeeId) || employees[0] || {};
 
-  const empAttendance = attendanceRecords.filter(a => a.employeeId === emp.employeeId);
-  const empRemarks = remarks.filter(r => r.employeeId === emp.employeeId);
+  const empAttendance = emp?.employeeId ? attendanceRecords.filter(a => a.employeeId === emp.employeeId) : [];
+  const empRemarks = emp ? remarks.filter(r => isRemarkForEmployee(r, emp)).slice(0, 2) : [];
 
   const handleOpenAddRemark = () => {
     setEditingRemark(null);
@@ -36,6 +39,15 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
     setEditingRemark(remark);
     setIsRemarkModalOpen(true);
   };
+
+  const handleDeleteRemark = (remarkId) => {
+    deleteRemark(remarkId);
+  };
+
+  const geoRadius = emp?.officeLocation?.radiusMeters ?? officeSettings?.geoFence?.radiusMeters ?? 500;
+  const casualLeave = emp?.leaveBalance?.casual ?? 12;
+  const sickLeave = emp?.leaveBalance?.sick ?? 8;
+  const annualLeave = emp?.leaveBalance?.annual ?? 15;
 
   return (
     <div className="space-y-6">
@@ -53,25 +65,25 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
       <Card className="p-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <Avatar src={emp.avatar} name={emp.name} size="xl" />
+            <Avatar src={emp?.avatar} name={emp?.name || 'Employee'} size="xl" />
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">{emp.name}</h2>
-                <Badge variant="outline" className="font-mono text-xs">{emp.role}</Badge>
+                <h2 className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">{emp?.name || 'Employee Profile'}</h2>
+                <Badge variant="outline" className="font-mono text-xs">{emp?.role || 'EMPLOYEE'}</Badge>
               </div>
-              <p className="text-xs font-medium text-neutral-500">{emp.designation} • {emp.department}</p>
+              <p className="text-xs font-medium text-neutral-500">{emp?.designation || 'Staff'} • {emp?.department || 'Engineering'}</p>
               <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-400 pt-1 font-mono">
-                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {emp.email}</span>
-                <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {emp.phone}</span>
-                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Joined {emp.joiningDate}</span>
+                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {emp?.email || '--'}</span>
+                <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {emp?.phone || '--'}</span>
+                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Joined {emp?.joiningDate || '--'}</span>
               </div>
             </div>
           </div>
 
           <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs space-y-1 shrink-0">
             <span className="text-[10px] uppercase font-mono font-medium text-neutral-400">Reporting Structure</span>
-            <p className="font-semibold text-neutral-900 dark:text-white">Manager: {emp.manager}</p>
-            <p className="text-neutral-500">Office Geo Radius: {emp.officeLocation.radiusMeters}m</p>
+            <p className="font-semibold text-neutral-900 dark:text-white">Manager: {emp?.manager || 'Sardar Sadiq'}</p>
+            <p className="text-neutral-500">Office Geo Radius: {geoRadius}m</p>
           </div>
         </div>
       </Card>
@@ -86,15 +98,15 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
             <div className="grid grid-cols-3 gap-2 text-center my-auto">
               <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase">Casual</span>
-                <p className="text-xl font-bold text-neutral-900 dark:text-white">{emp.leaveBalance.casual}</p>
+                <p className="text-xl font-bold text-neutral-900 dark:text-white">{casualLeave}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase">Sick</span>
-                <p className="text-xl font-bold text-neutral-900 dark:text-white">{emp.leaveBalance.sick}</p>
+                <p className="text-xl font-bold text-neutral-900 dark:text-white">{sickLeave}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase">Annual</span>
-                <p className="text-xl font-bold text-neutral-900 dark:text-white">{emp.leaveBalance.annual}</p>
+                <p className="text-xl font-bold text-neutral-900 dark:text-white">{annualLeave}</p>
               </div>
             </div>
           </CardContent>
@@ -157,7 +169,7 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
             </div>
             {activeRole === 'ADMIN' && (
               <Button onClick={handleOpenAddRemark} size="sm" variant="outline">
-                <Plus className="w-3.5 h-3.5" /> Add Remark
+                <Plus className="w-3.5 h-3.5" /> Add Remark ({empRemarks.length}/2)
               </Button>
             )}
           </div>
@@ -177,13 +189,22 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-neutral-400">{new Date(r.createdAt).toLocaleString()}</span>
                       {activeRole === 'ADMIN' && (
-                        <button
-                          onClick={() => handleOpenEditRemark(r)}
-                          className="p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
-                          title="Edit Remark"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleOpenEditRemark(r)}
+                            className="p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
+                            title="Edit Remark"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRemark(r.id)}
+                            className="p-1 text-rose-400 hover:text-rose-600 dark:hover:text-rose-400 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                            title="Delete Remark"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -202,8 +223,8 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
       <AddRemarkModal
         isOpen={isRemarkModalOpen}
         onClose={() => setIsRemarkModalOpen(false)}
-        employeeId={emp.employeeId}
-        employeeName={emp.name}
+        employeeId={emp?.employeeId || ''}
+        employeeName={emp?.name || ''}
         editingRemark={editingRemark}
       />
     </div>

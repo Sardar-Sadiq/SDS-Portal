@@ -1,23 +1,38 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/context/store-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { AddRemarkModal } from '@/modules/remarks/components/AddRemarkModal';
-import { Mail, Phone, MapPin, Award, Plus, Pencil } from 'lucide-react';
+import { Mail, Phone, MapPin, Award, Plus, Pencil, Trash2 } from 'lucide-react';
 import { AnimatedNumber } from '@/components/motion/animated-number';
 
+import { isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
+
 export const ProfileView = () => {
-  const { currentUser, remarks, activeRole } = useStore();
+  const { currentUser, remarks, activeRole, deleteRemark, notifications, dismissNotification } = useStore();
   const [isRemarkModalOpen, setIsRemarkModalOpen] = useState(false);
   const [editingRemark, setEditingRemark] = useState(null);
 
+  // Auto-clear remark notifications once the employee checks their profile
+  useEffect(() => {
+    if (activeRole !== 'ADMIN' && currentUser && notifications?.length > 0) {
+      notifications.forEach(n => {
+        const titleLower = (n.title || '').toLowerCase();
+        const descLower = (n.message || '').toLowerCase();
+        if (titleLower.includes('remark') || descLower.includes('remark') || n.category === 'REMARK') {
+          dismissNotification(n.id);
+        }
+      });
+    }
+  }, [currentUser, activeRole, notifications]);
+
   if (!currentUser) return null;
 
-  const myRemarks = remarks.filter(r => r.employeeId === currentUser.employeeId);
+  const myRemarks = remarks.filter(r => isRemarkForEmployee(r, currentUser)).slice(0, 2);
 
   const handleOpenAddRemark = () => {
     setEditingRemark(null);
@@ -27,6 +42,10 @@ export const ProfileView = () => {
   const handleOpenEditRemark = (remark) => {
     setEditingRemark(remark);
     setIsRemarkModalOpen(true);
+  };
+
+  const handleDeleteRemark = (remarkId) => {
+    deleteRemark(remarkId);
   };
 
   return (
@@ -123,7 +142,7 @@ export const ProfileView = () => {
             </div>
             {activeRole === 'ADMIN' && (
               <Button onClick={handleOpenAddRemark} size="sm" variant="outline">
-                <Plus className="w-3.5 h-3.5" /> Add Remark
+                <Plus className="w-3.5 h-3.5" /> Add Remark ({myRemarks.length}/2)
               </Button>
             )}
           </div>
@@ -143,13 +162,22 @@ export const ProfileView = () => {
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] text-neutral-400">{new Date(r.createdAt).toLocaleString()}</span>
                       {activeRole === 'ADMIN' && (
-                        <button
-                          onClick={() => handleOpenEditRemark(r)}
-                          className="p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
-                          title="Edit Remark"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleOpenEditRemark(r)}
+                            className="p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-colors"
+                            title="Edit Remark"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRemark(r.id)}
+                            className="p-1 text-rose-400 hover:text-rose-600 dark:hover:text-rose-400 rounded hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                            title="Delete Remark"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

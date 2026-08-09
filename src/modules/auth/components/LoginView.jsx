@@ -68,7 +68,7 @@ export const LoginView = () => {
           );
         }
       } catch (dbErr) {
-        console.warn('LoginView: Supabase query exception, falling back to local verification:', dbErr);
+        // Silent query fallback
       }
 
       // 2. Hardcoded fallback matching against SDS registered employee allowlist
@@ -101,7 +101,6 @@ export const LoginView = () => {
         department: employee.department || 'Staff'
       };
 
-      console.log('LoginView: Direct email authentication successful:', authPayload);
       setAuthenticatedUser(authPayload);
 
       if (userRole === 'admin') {
@@ -110,7 +109,6 @@ export const LoginView = () => {
         navigate('/dashboard', { replace: true });
       }
     } catch (err) {
-      console.error('LoginView: Email login error:', err);
       setErrorMessage('Failed to sign in. Please check network connection.');
       setLoading(false);
     }

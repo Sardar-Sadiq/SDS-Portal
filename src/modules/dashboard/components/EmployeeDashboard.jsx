@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, Calendar, Award, User, ChevronRight } from 'lucide-react';
 import { AnimatedNumber } from '@/components/motion/animated-number';
 
+import { isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
+
 export const EmployeeDashboard = ({
   onNavigateTab,
   onOpenCheckIn,
@@ -22,7 +24,7 @@ export const EmployeeDashboard = ({
     .filter(a => a.employeeId === currentUser?.employeeId)
     .slice(0, 5);
 
-  const myRemarks = remarks.filter(r => r.employeeId === currentUser?.employeeId);
+  const myRemarks = remarks.filter(r => isRemarkForEmployee(r, currentUser)).slice(0, 2);
 
   return (
     <div className="space-y-6">

@@ -32,12 +32,15 @@ export const AddRemarkModal = ({
 
     if (editingRemark) {
       editRemark(editingRemark.id, content, category);
+      setContent('');
+      onClose();
     } else {
-      addRemark(employeeId, content, category);
+      const success = addRemark(employeeId, content, category);
+      if (success !== false) {
+        setContent('');
+        onClose();
+      }
     }
-    
-    setContent('');
-    onClose();
   };
 
   return (
@@ -45,7 +48,7 @@ export const AddRemarkModal = ({
       isOpen={isOpen}
       onClose={onClose}
       title={editingRemark ? `Edit Remark — ${employeeName}` : `Add Performance Remark — ${employeeName}`}
-      description="Admin performance feedback log (visible to employee in read-only mode)"
+      description="Admin performance feedback log (Max 2 remarks allowed per employee)"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -73,6 +76,10 @@ export const AddRemarkModal = ({
             className="w-full px-3 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs focus:outline-none focus:border-neutral-500 resize-none"
           />
         </div>
+
+        <p className="text-[11px] text-neutral-400 font-mono">
+          * Each employee is limited to a maximum of 2 active performance remarks.
+        </p>
 
         <div className="pt-3 flex justify-end gap-2 border-t border-neutral-100 dark:border-neutral-800">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

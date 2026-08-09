@@ -121,8 +121,13 @@ const PortalLayout = () => {
   }));
 
   const handleNotificationClick = (item) => {
-    const titleLower = item.title.toLowerCase();
-    if (titleLower.includes('leave')) {
+    dismissNotification(item.id);
+    const titleLower = (item.title || '').toLowerCase();
+    const descLower = (item.description || '').toLowerCase();
+
+    if (titleLower.includes('remark') || descLower.includes('remark')) {
+      handleSetActiveTab('profile');
+    } else if (titleLower.includes('leave')) {
       handleSetActiveTab('leave');
     } else if (titleLower.includes('check-in') || titleLower.includes('attendance') || titleLower.includes('geo-fence')) {
       handleSetActiveTab('attendance');

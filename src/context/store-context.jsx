@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { attendanceService } from '@/modules/attendance/services/attendanceService';
 import { leaveService } from '@/modules/leave/services/leaveService';
 import { employeeService } from '@/modules/employees/services/employeeService';
+import { remarkService, isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
 
 
 
@@ -25,7 +26,25 @@ export const StoreProvider = ({ children }) => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("emp-002");
   const [leaveBalances, setLeaveBalances] = useState({ casual: 12, sick: 8, annual: 15 });
 
-  const [notifications, setNotifications] = useState([]);
+  const NOTIFICATIONS_STORAGE_KEY = 'sds_notifications_v2';
+  const getInitialNotifications = () => {
+    try {
+      const saved = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  };
+
+  const [notifications, setNotifications] = useState(getInitialNotifications);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications));
+    } catch (e) {}
+  }, [notifications]);
 
   // Sync session with Supabase Auth on mount & on auth changes
   useEffect(() => {
@@ -244,6 +263,32 @@ export const StoreProvider = ({ children }) => {
       channel.unsubscribe();
     };
   }, [currentUser?.employeeId, currentUser?.role]);
+
+  // ── Remarks: fetch real remarks & subscribe to Realtime updates ────
+  useEffect(() => {
+    let isMounted = true;
+    const loadRemarks = async () => {
+      try {
+        const list = await remarkService.fetchRemarks();
+        if (isMounted && list) {
+          setRemarks(list);
+        }
+      } catch (err) {
+        console.error('StoreProvider: Failed to load remarks —', err.message);
+      }
+    };
+
+    loadRemarks();
+
+    const channel = remarkService.subscribeToRemarkChanges(() => {
+      loadRemarks();
+    });
+
+    return () => {
+      isMounted = false;
+      channel.unsubscribe();
+    };
+  }, []);
 
   const setAuthenticatedUser = (payload) => {
     if (!payload) {
@@ -670,10 +715,27 @@ export const StoreProvider = ({ children }) => {
   };
 
   const addRemark = (employeeId, content, category) => {
-    if (activeRole !== 'ADMIN') return;
+    if (activeRole !== 'ADMIN') return false;
+    const targetEmp = employees.find(e => e.employeeId === employeeId || e.id === employeeId || e.email === employeeId);
+
+    // Enforce max limit of 2 performance remarks per employee
+    const targetRef = targetEmp || { employeeId };
+    const existingCount = remarks.filter(r => isRemarkForEmployee(r, targetRef)).length;
+
+    if (existingCount >= 2) {
+      showToast({
+        title: "Remark Limit Reached (Max 2)",
+        description: `Each employee is limited to a maximum of 2 performance remarks. Please edit or delete an existing remark.`,
+        status: "info"
+      });
+      return false;
+    }
+
     const newRemark = {
       id: `rem-${Date.now()}`,
-      employeeId,
+      employeeId: targetEmp?.employeeId || employeeId,
+      employeeAuthId: targetEmp?.auth_id || targetEmp?.id || null,
+      employeeEmail: targetEmp?.email || null,
       authorId: currentUser?.employeeId || 'SDS-1001',
       authorName: currentUser?.name || 'Sardar Sadiq',
       authorRole: activeRole,
@@ -681,21 +743,70 @@ export const StoreProvider = ({ children }) => {
       category,
       createdAt: new Date().toISOString()
     };
-    setRemarks(prev => [newRemark, ...prev]);
+
+    setRemarks(prev => [newRemark, ...prev.filter(r => r.id !== newRemark.id)]);
+
+    // Dispatch real-time notification to employee
+    setNotifications(prev => [
+      {
+        id: `notif-${Date.now()}-remark`,
+        title: "New Performance Remark",
+        message: `${currentUser?.name || 'Manager'} added a ${category.toLowerCase()} performance remark for you: "${content.length > 55 ? content.slice(0, 52) + '...' : content}"`,
+        time: "Just now",
+        read: false,
+        type: "INFO",
+        targetUser: targetEmp?.employeeId || targetEmp?.id || targetEmp?.auth_id || targetEmp?.email || employeeId,
+        category: "REMARK"
+      },
+      ...prev
+    ]);
+
+    remarkService.addRemark(newRemark).then(updated => {
+      if (updated) setRemarks(updated);
+    }).catch(err => {
+      console.error('StoreProvider: addRemark error —', err);
+    });
+
+    showToast({
+      title: "Performance Remark Published",
+      description: `Added ${category.toLowerCase()} remark for ${targetEmp?.name || 'employee'}.`,
+      status: "success"
+    });
+    return true;
   };
 
   const editRemark = (remarkId, content, category) => {
     if (activeRole !== 'ADMIN') return;
-    setRemarks(prev => prev.map(r => {
-      if (r.id === remarkId) {
-        return {
-          ...r,
-          content,
-          category
-        };
-      }
-      return r;
-    }));
+    setRemarks(prev => prev.map(r => r.id === remarkId ? { ...r, content, category } : r));
+
+    remarkService.editRemark(remarkId, content, category).then(updated => {
+      if (updated) setRemarks(updated);
+    }).catch(err => {
+      console.error('StoreProvider: editRemark error —', err);
+    });
+
+    showToast({
+      title: "Performance Remark Updated",
+      description: "Remark content saved successfully.",
+      status: "info"
+    });
+  };
+
+  const deleteRemark = (remarkId) => {
+    if (activeRole !== 'ADMIN') return;
+    setRemarks(prev => prev.filter(r => r.id !== remarkId));
+
+    remarkService.deleteRemark(remarkId).then(updated => {
+      if (updated) setRemarks(updated);
+    }).catch(err => {
+      console.error('StoreProvider: deleteRemark error —', err);
+    });
+
+    showToast({
+      title: "Performance Remark Removed",
+      description: "Remark deleted successfully.",
+      status: "info"
+    });
   };
 
   const addHoliday = (holidayData) => {
@@ -857,7 +968,18 @@ export const StoreProvider = ({ children }) => {
 
   const roleNotifications = notifications.filter(n => {
     if (n.targetUser) {
-      return n.targetUser === currentUser?.employeeId;
+      const remTarget = String(n.targetUser || '').toLowerCase().trim();
+      const empId = String(currentUser?.employeeId || '').toLowerCase().trim();
+      const empDbId = String(currentUser?.id || '').toLowerCase().trim();
+      const empAuthId = String(currentUser?.auth_id || '').toLowerCase().trim();
+      const empEmail = String(currentUser?.email || '').toLowerCase().trim();
+
+      return (
+        (empId && remTarget === empId) ||
+        (empDbId && remTarget === empDbId) ||
+        (empAuthId && remTarget === empAuthId) ||
+        (empEmail && remTarget === empEmail)
+      );
     }
     if (n.targetRole) {
       return n.targetRole === activeRole;
@@ -881,6 +1003,7 @@ export const StoreProvider = ({ children }) => {
         remarks,
         officeSettings,
         notifications: roleNotifications,
+        markNotificationAsRead,
         dismissNotification,
         clearAllNotifications,
         selectedEmployeeId,
@@ -893,12 +1016,15 @@ export const StoreProvider = ({ children }) => {
         checkIn,
         checkOut,
         applyLeave,
+        reviewLeave,
         addEmployee,
         deleteEmployee,
         addRemark,
         editRemark,
+        deleteRemark,
         addHoliday,
         editHoliday,
+        deleteHoliday,
         updateSettings,
         exportAttendanceExcel
       }}
