@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
+import { LeaveBalanceCard } from './LeaveBalanceCard';
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { Plus, Download } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
@@ -47,42 +48,19 @@ export const LeaveManagementView = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={exportAttendanceExcel} variant="outline" size="sm" className="text-xs">
-            <Download className="w-3.5 h-3.5" /> Export Excel Ledger (.csv)
-          </Button>
+          {activeRole === 'ADMIN' && (
+            <Button onClick={exportAttendanceExcel} variant="outline" size="sm" className="text-xs">
+              <Download className="w-3.5 h-3.5" /> Export Excel Ledger (.csv)
+            </Button>
+          )}
           <Button onClick={() => setIsApplyModalOpen(true)} size="sm" className="text-xs">
             <Plus className="w-3.5 h-3.5" /> Apply For Leave
           </Button>
         </div>
       </div>
 
-      {/* 4 Identical Quota & Pending Cards with BEUI AnimatedNumber */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-stretch">
-        <Card className="p-4 h-full flex flex-col justify-between">
-          <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">Casual Leave Balance</span>
-          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
-            <AnimatedNumber value={currentUser?.leaveBalance.casual || 0} /> <span className="text-xs font-normal text-neutral-400">days</span>
-          </p>
-        </Card>
-        <Card className="p-4 h-full flex flex-col justify-between">
-          <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">Sick Leave Balance</span>
-          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
-            <AnimatedNumber value={currentUser?.leaveBalance.sick || 0} /> <span className="text-xs font-normal text-neutral-400">days</span>
-          </p>
-        </Card>
-        <Card className="p-4 h-full flex flex-col justify-between">
-          <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">Annual Paid Leave</span>
-          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
-            <AnimatedNumber value={currentUser?.leaveBalance.annual || 0} /> <span className="text-xs font-normal text-neutral-400">days</span>
-          </p>
-        </Card>
-        <Card className="p-4 h-full flex flex-col justify-between">
-          <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">Total Pending Requests</span>
-          <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1">
-            <AnimatedNumber value={pendingCount} />
-          </p>
-        </Card>
-      </div>
+      <LeaveBalanceCard pendingCount={pendingCount} />
+
 
       <div className="flex items-center gap-1.5 border-b border-neutral-200 dark:border-neutral-800 pb-2">
         {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(st => (

@@ -17,7 +17,9 @@ import { AttendanceView } from '@/modules/attendance/components/AttendanceView';
 import { LeaveManagementView } from '@/modules/leave/components/LeaveManagementView';
 import { SettingsView } from '@/modules/settings/components/SettingsView';
 import { AnalyticsView } from '@/modules/analytics/components/AnalyticsView';
+import { AdminReportsView } from '@/modules/reports/components/AdminReportsView';
 import { ProfileView } from '@/modules/profile/components/ProfileView';
+
 
 import { GeoCheckInModal } from '@/modules/attendance/components/GeoCheckInModal';
 import { AddEmployeeModal } from '@/modules/employees/components/AddEmployeeModal';
@@ -63,7 +65,9 @@ const PortalLayout = () => {
     if (path.includes('/attendance')) return 'attendance';
     if (path.includes('/leave')) return 'leave';
     if (path.includes('/analytics') || path.includes('/admin/analytics')) return 'analytics';
+    if (path.includes('/reports') || path.includes('/admin/reports')) return 'reports';
     if (path.includes('/settings') || path.includes('/admin/settings')) return 'settings';
+
     if (path.includes('/profile')) return 'profile';
     if (path.includes('/employee-details')) return 'employee-details';
     return 'dashboard';
@@ -89,6 +93,9 @@ const PortalLayout = () => {
         break;
       case 'analytics':
         navigate('/analytics');
+        break;
+      case 'reports':
+        navigate('/reports');
         break;
       case 'settings':
         navigate('/settings');
@@ -236,6 +243,14 @@ const PortalLayout = () => {
               element={
                 <AdminRoute>
                   <AnalyticsView />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/reports"
+              element={
+                <AdminRoute>
+                  <AdminReportsView />
                 </AdminRoute>
               }
             />

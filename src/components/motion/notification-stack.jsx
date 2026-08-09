@@ -70,18 +70,19 @@ function NotificationCardContent({
             </span>
           ) : null}
           {onDismiss ? (
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               aria-label="Dismiss notification"
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 onDismiss(item.id);
               }}
-              className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
+              className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
-            </button>
+            </span>
           ) : null}
         </div>
       </span>
@@ -175,8 +176,9 @@ export function NotificationStack({
   };
 
   return (
-    <motion.button
-      type="button"
+    <motion.div
+      role="button"
+      tabIndex={0}
       initial={false}
       aria-expanded={isExpanded}
       aria-label={
@@ -312,6 +314,6 @@ export function NotificationStack({
           </span>
         </motion.span>
       </span>
-    </motion.button>
+    </motion.div>
   );
 }

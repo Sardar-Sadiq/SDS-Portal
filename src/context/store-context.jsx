@@ -4,6 +4,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_EMPLOYEES, INITIAL_ATTENDANCE, INITIAL_LEAVES, INITIAL_REMARKS, INITIAL_OFFICE_SETTINGS } from '@/lib/mock-data';
 import { useAnimatedToastStack } from '@/components/motion/animated-toast-stack';
 import { supabase } from '@/lib/supabaseClient';
+import { attendanceService } from '@/modules/attendance/services/attendanceService';
+import { leaveService } from '@/modules/leave/services/leaveService';
+import { employeeService } from '@/modules/employees/services/employeeService';
+
+
 
 const StoreContext = createContext(undefined);
 
@@ -12,68 +17,15 @@ export const StoreProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [activeRole, setActiveRole] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
+  const [employees, setEmployees] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState(INITIAL_ATTENDANCE);
-  const [leaveRequests, setLeaveRequests] = useState(INITIAL_LEAVES);
+  const [leaveRequests, setLeaveRequests] = useState([]);
   const [remarks, setRemarks] = useState(INITIAL_REMARKS);
   const [officeSettings, setOfficeSettings] = useState(INITIAL_OFFICE_SETTINGS);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("emp-002");
-  const [notifications, setNotifications] = useState([
-    {
-      id: "notif-1",
-      title: "Elena Rostova • Leave Request",
-      message: "Applied for 2 days of Casual Leave. Awaiting admin review.",
-      time: "10 mins ago",
-      read: false,
-      type: "INFO",
-      targetRole: "ADMIN"
-    },
-    {
-      id: "notif-2",
-      title: "Attendance SLA Target",
-      message: "4 out of 5 staff checked in on-time before 09:00 AM.",
-      time: "1 hour ago",
-      read: true,
-      type: "SUCCESS",
-      targetRole: "ADMIN"
-    },
-    {
-      id: "notif-3",
-      title: "GPS Geo-Fence System Active",
-      message: "HQ geofence radius locked within 500m.",
-      time: "Today",
-      read: true,
-      type: "INFO",
-      targetRole: "ADMIN"
-    },
-    {
-      id: "notif-4",
-      title: "GPS Geo-Fence Verified",
-      message: "Location verified within 50m of office campus.",
-      time: "Today",
-      read: false,
-      type: "SUCCESS",
-      targetRole: "EMPLOYEE"
-    },
-    {
-      id: "notif-5",
-      title: "Leave Status Pending",
-      message: "Your Casual leave application is currently under admin review.",
-      time: "2 hours ago",
-      read: false,
-      type: "INFO",
-      targetRole: "EMPLOYEE"
-    },
-    {
-      id: "notif-6",
-      title: "Monthly Attendance Record",
-      message: "21 working days recorded with 98% SLA compliance.",
-      time: "Yesterday",
-      read: true,
-      type: "SUCCESS",
-      targetRole: "EMPLOYEE"
-    }
-  ]);
+  const [leaveBalances, setLeaveBalances] = useState({ casual: 12, sick: 8, annual: 15 });
+
+  const [notifications, setNotifications] = useState([]);
 
   // Sync session with Supabase Auth on mount & on auth changes
   useEffect(() => {
@@ -88,10 +40,16 @@ export const StoreProvider = ({ children }) => {
           // Try querying `SDS_Employees` first, then fallback to `employees`
           let tableName = 'SDS_Employees';
           let employee = null;
+          let sdsData = null;
 
-          const { data: sdsData } = await supabase
-            .from('SDS_Employees')
-            .select('*');
+          try {
+            const { data } = await supabase
+              .from('SDS_Employees')
+              .select('*');
+            sdsData = data;
+          } catch (e) {
+            sdsData = null;
+          }
 
           if (sdsData && sdsData.length > 0) {
             employee = sdsData.find(emp => emp.is_active !== false && emp.email?.trim().toLowerCase() === userEmail);
@@ -111,6 +69,10 @@ export const StoreProvider = ({ children }) => {
             const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
             const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
 
+            const authAvatar = session.user?.user_metadata?.avatar_url || session.user?.user_metadata?.picture;
+            const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(employee.full_name || session.user.email)}&background=10b981&color=fff&bold=true`;
+            const userAvatar = employee.avatar || authAvatar || fallbackAvatar;
+
             const userObj = {
               id: employee.id || session.user.id,
               employeeId: employee.id || session.user.id,
@@ -124,7 +86,7 @@ export const StoreProvider = ({ children }) => {
               phone: employee.phone || '+91 98765 43210',
               manager: employee.manager || 'Sardar Sadiq',
               joiningDate: employee.joiningDate || '2024-01-15',
-              avatar: employee.avatar || '',
+              avatar: userAvatar,
               officeLocation: employee.officeLocation || defaultOfficeLocation,
               leaveBalance: employee.leaveBalance || defaultLeaveBalance
             };
@@ -166,79 +128,122 @@ export const StoreProvider = ({ children }) => {
     };
   }, []);
 
-  // ── Attendance: fetch from Supabase when currentUser is known ───────────────
-  // Runs whenever currentUser changes (login → sets records; logout → clears them).
-  // Optimistic strategy: local state is the source of truth for immediate UI
-  // responsiveness. Supabase is the source of truth for persistence.
+  // ── Employees: fetch real SDS_Employees from Supabase & subscribe to Realtime updates
+  useEffect(() => {
+    let isMounted = true;
+    const loadEmployees = async () => {
+      try {
+        const empList = await employeeService.fetchEmployees();
+        if (isMounted && empList) {
+          setEmployees(empList);
+        }
+      } catch (err) {
+        console.error('StoreProvider: Failed to load SDS_Employees —', err.message);
+      }
+    };
+
+    loadEmployees();
+
+    // Subscribe to realtime updates on SDS_Employees table
+    const channel = employeeService.subscribeToEmployeeChanges(() => {
+      loadEmployees();
+    });
+
+    return () => {
+      isMounted = false;
+      channel.unsubscribe();
+    };
+  }, []);
+
+  // ── Attendance: fetch from Supabase and subscribe to Realtime updates ───────────────
   useEffect(() => {
     if (!currentUser?.employeeId) return;
 
     let isMounted = true;
     const isAdmin = (currentUser.role || '').toUpperCase() === 'ADMIN';
 
-    const fetchAttendance = async () => {
+    const loadAttendance = async () => {
       try {
-        // Admins see all records for the last 90 days; employees see only their own.
-        // Limiting to 90 days prevents an unbounded scan as the table grows.
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-        const fromDate = ninetyDaysAgo.toISOString().split('T')[0];
-
-        let query = supabase
-          .from('SDS_Attendance')
-          .select('*')
-          .gte('date', fromDate)
-          .order('date', { ascending: false })
-          .order('created_at', { ascending: false });
-
-        // Employees only see their own records
-        if (!isAdmin) {
-          query = query.eq('employee_id', currentUser.employeeId);
+        const records = await attendanceService.fetchAttendance({
+          employeeId: currentUser.employeeId,
+          isAdmin,
+        });
+        if (isMounted && records) {
+          setAttendanceRecords(records);
         }
-
-        const { data, error } = await query;
-
-        if (error) {
-          console.error('StoreProvider: Failed to fetch SDS_Attendance —', error.message);
-          // Keep the existing mock data as a fallback — don't wipe the UI
-          return;
-        }
-
-        if (!isMounted || !data) return;
-
-        // Map DB snake_case columns back to the camelCase shape the UI expects
-        const mapped = data.map((row) => ({
-          id: row.id,
-          employeeId: row.employee_id,
-          employeeName: row.employee_name,
-          avatar: row.avatar ?? '',
-          department: row.department ?? '',
-          date: row.date,
-          checkIn: row.check_in ?? null,
-          checkOut: row.check_out ?? null,
-          workingHours: row.working_hours ?? 0,
-          status: row.status,
-          locationVerified: row.location_verified,
-          coordinates: {
-            lat: row.latitude ? Number(row.latitude) : null,
-            lng: row.longitude ? Number(row.longitude) : null,
-          },
-          distanceFromOfficeMeters: row.distance_from_office_meters ?? null,
-          accuracyMeters: row.accuracy_meters ?? null,
-          officeName: row.office_name ?? null,
-          isLate: row.is_late,
-        }));
-
-        setAttendanceRecords(mapped);
       } catch (err) {
-        console.error('StoreProvider: Unexpected error fetching attendance —', err);
+        console.error('StoreProvider: Attendance fetch error —', err.message);
       }
     };
 
-    fetchAttendance();
+    loadAttendance();
 
-    return () => { isMounted = false; };
-  }, [currentUser?.employeeId]);
+    // Live Realtime subscription: auto-sync check-in/outs instantly across browsers/tabs
+    const channel = attendanceService.subscribeToAttendanceChanges(() => {
+      loadAttendance();
+    });
+
+    return () => {
+      isMounted = false;
+      channel.unsubscribe();
+    };
+  }, [currentUser?.employeeId, currentUser?.role]);
+
+  // ── Leave Balances: fetch and subscribe to Realtime ledger changes ────
+  const fetchLeaveBalances = async () => {
+    if (!currentUser?.auth_id) return;
+    try {
+      const balances = await leaveService.fetchBalances(currentUser.auth_id);
+      if (balances) {
+        setLeaveBalances(balances);
+      }
+    } catch (err) {
+      console.error('StoreProvider: Failed to fetch leave balances —', err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaveBalances();
+
+    // Subscribe to leave_ledger changes for real-time balance updates
+    const channel = leaveService.subscribeToLeaveChanges(() => {
+      fetchLeaveBalances();
+    });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [currentUser?.auth_id]);
+
+  // ── Leave Requests: fetch real leave applications & subscribe to Realtime updates ────
+  const fetchLeaveRequests = async () => {
+    if (!currentUser?.employeeId) return;
+    try {
+      const isAdmin = (currentUser.role || '').toUpperCase() === 'ADMIN';
+      const requests = await leaveService.fetchLeaveRequests({
+        employeeId: currentUser.employeeId,
+        isAdmin
+      });
+      if (requests) {
+        setLeaveRequests(requests);
+      }
+    } catch (err) {
+      console.error('StoreProvider: Failed to fetch leave requests —', err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaveRequests();
+
+    const channel = leaveService.subscribeToLeaveChanges(() => {
+      fetchLeaveRequests();
+      fetchLeaveBalances();
+    });
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [currentUser?.employeeId, currentUser?.role]);
 
   const setAuthenticatedUser = (payload) => {
     if (!payload) {
@@ -357,39 +362,25 @@ export const StoreProvider = ({ children }) => {
     // 1. Optimistic local update — UI reflects the check-in immediately
     setAttendanceRecords(prev => [newRecord, ...prev.filter(r => !(r.employeeId === currentUser.employeeId && r.date === todayStr))]);
 
-    // 2. Persist to Supabase — map JS camelCase → DB snake_case.
-    //    Using upsert with the (employee_id, date) conflict key so re-opens of
-    //    the modal don't create duplicate rows if the user refreshes mid-flow.
-    supabase
-      .from('SDS_Attendance')
-      .upsert(
-        {
-          employee_id: currentUser.employeeId,
-          employee_name: currentUser.name,
-          avatar: currentUser.avatar ?? null,
-          department: currentUser.department ?? null,
-          date: todayStr,
-          check_in: timeStr,
-          check_out: null,
-          working_hours: 0,
-          status: status,
-          is_late: isLate,
-          location_verified: true,
-          latitude: userLat ?? null,
-          longitude: userLng ?? null,
-          distance_from_office_meters: distanceMeters ?? null,
-          accuracy_meters: coords?.accuracyMeters ?? null,
-          office_name: coords?.officeName ?? null,
-        },
-        { onConflict: 'employee_id,date' }
-      )
-      .then(({ error }) => {
-        if (error) {
-          // Log but don't throw — local state is already updated. The user
-          // sees a successful check-in in the UI; the admin should investigate
-          // the Supabase error separately.
-          console.error('StoreProvider: Failed to persist check-in to Supabase —', error.message);
-        }
+    // 2. Persist to Supabase via attendanceService
+    attendanceService
+      .recordCheckIn({
+        employeeId: currentUser.employeeId,
+        employeeName: currentUser.name,
+        avatar: currentUser.avatar,
+        department: currentUser.department,
+        date: todayStr,
+        checkIn: timeStr,
+        status,
+        isLate,
+        latitude: userLat,
+        longitude: userLng,
+        distanceMeters,
+        accuracyMeters: coords?.accuracyMeters,
+        officeName: coords?.officeName,
+      })
+      .catch((err) => {
+        console.error('StoreProvider: Failed to persist check-in to Supabase —', err.message);
       });
 
     setNotifications(prev => [
@@ -459,22 +450,45 @@ export const StoreProvider = ({ children }) => {
     // 1. Optimistic local update
     setAttendanceRecords(updated);
 
-    // 2. Persist check-out to Supabase — UPDATE the existing row for today.
-    //    We update by (employee_id, date) rather than by uuid so we don't need
-    //    to thread the DB-generated id back through the local record.
-    supabase
-      .from('SDS_Attendance')
-      .update({
-        check_out: timeStr,
-        working_hours: hoursWorked,
+    // 2. Persist check-out to Supabase via attendanceService
+    attendanceService
+      .recordCheckOut({
+        employeeId: currentUser.employeeId,
+        date: todayStr,
+        checkOutTime: timeStr,
+        workingHours: hoursWorked,
       })
-      .eq('employee_id', currentUser.employeeId)
-      .eq('date', todayStr)
-      .then(({ error }) => {
-        if (error) {
-          console.error('StoreProvider: Failed to persist check-out to Supabase —', error.message);
-        }
+      .catch((err) => {
+        console.error('StoreProvider: Failed to persist check-out to Supabase —', err.message);
       });
+
+    setNotifications(prev => [
+      {
+        id: `notif-checkout-${Date.now()}-emp`,
+        title: "Check-Out Verified",
+        message: `Checked out at ${timeStr}. Recorded working time: ${hoursWorked} hrs today.`,
+        time: "Just now",
+        read: false,
+        type: "SUCCESS",
+        targetUser: currentUser.employeeId
+      },
+      {
+        id: `notif-checkout-${Date.now()}-admin`,
+        title: `${currentUser.name} Checked Out`,
+        message: `${currentUser.name} checked out at ${timeStr} (${hoursWorked} hrs worked).`,
+        time: "Just now",
+        read: false,
+        type: "SUCCESS",
+        targetRole: "ADMIN"
+      },
+      ...prev
+    ]);
+
+    showToast({
+      title: "Check-Out Verified",
+      description: `Checked out at ${timeStr}. Total recorded working hours: ${hoursWorked} hrs.`,
+      status: "success"
+    });
 
     return {
       success: true,
@@ -501,6 +515,22 @@ export const StoreProvider = ({ children }) => {
     };
 
     setLeaveRequests(prev => [newLeave, ...prev]);
+
+    // Persist to Supabase via leaveService
+    leaveService.submitLeaveRequest({
+      employeeId: currentUser.employeeId,
+      employeeName: currentUser.name,
+      avatar: currentUser.avatar,
+      department: currentUser.department,
+      leaveType: leaveData.leaveType,
+      startDate: leaveData.startDate,
+      endDate: leaveData.endDate,
+      totalDays: leaveData.totalDays,
+      reason: leaveData.reason
+    }).catch(err => {
+      console.error('StoreProvider: Failed to persist leave request —', err.message);
+    });
+
     showToast({
       title: "Leave Request Submitted",
       description: `Submitted ${leaveData.leaveType} leave application for ${leaveData.totalDays} day(s).`,
@@ -565,16 +595,78 @@ export const StoreProvider = ({ children }) => {
         description: `Leave request for ${targetReq.employeeName} has been ${status.toLowerCase()}.`,
         status: status === 'APPROVED' ? "success" : "info"
       });
+
+      // Update status in Supabase via leaveService
+      leaveService.updateRequestStatus({
+        id: leaveId,
+        status,
+        reviewedBy: currentUser?.name || 'Admin',
+        adminNote
+      }).catch(err => {
+        console.error('StoreProvider: Failed to update leave status —', err.message);
+      });
+
+      // If approved, insert usage entry into leave_ledger via leaveService
+      if (status === 'APPROVED' && targetReq.leaveType !== 'UNPAID') {
+        const targetEmp = employees.find(e => e.employeeId === targetReq.employeeId);
+        const targetAuthId = targetEmp?.auth_id || currentUser?.auth_id;
+
+        if (targetAuthId) {
+          leaveService
+            .recordUsage({
+              authId: targetAuthId,
+              leaveType: targetReq.leaveType,
+              totalDays: targetReq.totalDays || 1,
+              startDate: targetReq.startDate,
+              endDate: targetReq.endDate,
+            })
+            .then(() => fetchLeaveBalances())
+            .catch((err) => {
+              console.error('StoreProvider: Failed to record leave usage in ledger —', err.message);
+            });
+        }
+      }
     }
   };
 
-  const addEmployee = (employeeData) => {
+  const addEmployee = async (employeeData) => {
     if (activeRole !== 'ADMIN') return;
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(employeeData.name || employeeData.email)}&background=10b981&color=fff&bold=true`;
     const newEmp = {
       ...employeeData,
-      id: `emp-${Date.now()}`
+      id: `emp-${Date.now()}`,
+      avatar: employeeData.avatar || defaultAvatar
     };
     setEmployees(prev => [...prev, newEmp]);
+
+    // Persist directly to Supabase SDS_Employees table
+    try {
+      await employeeService.addEmployee(employeeData);
+      showToast({
+        title: "Employee Added",
+        description: `${employeeData.name} (${employeeData.email}) saved to SDS_Employees in Supabase.`,
+        status: "success"
+      });
+    } catch (err) {
+      console.error('StoreProvider: Failed to add employee to Supabase —', err.message);
+    }
+  };
+
+  const deleteEmployee = async (empId) => {
+    if (activeRole !== 'ADMIN') return;
+    const target = employees.find(e => e.id === empId || e.employeeId === empId);
+    setEmployees(prev => prev.filter(e => e.id !== empId && e.employeeId !== empId));
+
+    try {
+      await employeeService.deleteEmployee(empId);
+      showToast({
+        title: "Employee Removed",
+        description: `Removed ${target?.name || 'employee'} from SDS_Employees database table.`,
+        status: "info"
+      });
+    } catch (err) {
+      console.error('StoreProvider: Failed to delete employee —', err.message);
+    }
   };
 
   const addRemark = (employeeId, content, category) => {
@@ -759,6 +851,10 @@ export const StoreProvider = ({ children }) => {
     });
   };
 
+  const clearAllNotifications = () => {
+    setNotifications([]);
+  };
+
   const roleNotifications = notifications.filter(n => {
     if (n.targetUser) {
       return n.targetUser === currentUser?.employeeId;
@@ -780,9 +876,13 @@ export const StoreProvider = ({ children }) => {
         employees,
         attendanceRecords,
         leaveRequests,
+        leaveBalances,
+        fetchLeaveBalances,
         remarks,
         officeSettings,
         notifications: roleNotifications,
+        dismissNotification,
+        clearAllNotifications,
         selectedEmployeeId,
         toasts,
         showToast,
@@ -793,16 +893,13 @@ export const StoreProvider = ({ children }) => {
         checkIn,
         checkOut,
         applyLeave,
-        reviewLeave,
         addEmployee,
+        deleteEmployee,
         addRemark,
         editRemark,
         addHoliday,
         editHoliday,
-        deleteHoliday,
         updateSettings,
-        markNotificationAsRead,
-        dismissNotification,
         exportAttendanceExcel
       }}
     >

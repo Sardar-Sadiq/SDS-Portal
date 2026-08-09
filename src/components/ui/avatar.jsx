@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -8,6 +8,8 @@ export const Avatar = ({
   size = 'md',
   className = ''
 }) => {
+  const [imageError, setImageError] = useState(false);
+
   const sizes = {
     sm: "w-7 h-7 text-xs",
     md: "w-9 h-9 text-sm",
@@ -16,8 +18,9 @@ export const Avatar = ({
   };
 
   const getInitials = (n) => {
-    return n
+    return (n || 'User')
       .split(' ')
+      .filter(Boolean)
       .map(part => part[0])
       .join('')
       .toUpperCase()
@@ -25,12 +28,16 @@ export const Avatar = ({
   };
 
   return (
-    <div className={twMerge(clsx("relative inline-flex items-center justify-center rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 ring-2 ring-neutral-200 dark:ring-neutral-800 shrink-0", sizes[size], className))}>
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={name} className="w-full h-full object-cover" />
+    <div className={twMerge(clsx("relative inline-flex items-center justify-center rounded-full overflow-hidden bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 font-bold ring-2 ring-neutral-200 dark:ring-neutral-800 shrink-0", sizes[size], className))}>
+      {src && !imageError ? (
+        <img
+          src={src}
+          alt={name}
+          onError={() => setImageError(true)}
+          className="w-full h-full object-cover"
+        />
       ) : (
-        <span className="font-semibold">{getInitials(name)}</span>
+        <span className="font-semibold select-none">{getInitials(name)}</span>
       )}
     </div>
   );

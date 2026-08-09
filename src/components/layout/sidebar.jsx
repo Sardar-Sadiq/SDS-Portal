@@ -11,7 +11,8 @@ import {
   BarChart3,
   PanelLeftClose,
   PanelLeft,
-  X
+  X,
+  FileSpreadsheet
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -45,6 +46,7 @@ export const Sidebar = ({
     { id: 'attendance', label: 'Attendance', icon: Clock },
     { id: 'leave', label: 'Leave Management', icon: CalendarOff, badge: pendingLeavesCount > 0 ? pendingLeavesCount : undefined },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'reports', label: 'Reports & Purge', icon: FileSpreadsheet },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'profile', label: 'My Profile', icon: UserCircle },
   ];

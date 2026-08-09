@@ -50,9 +50,16 @@ export const EmployeeAttendanceReport = ({
                       </td>
                       <td className="py-3 px-4 font-mono text-neutral-700 dark:text-neutral-300">
                         {log.checkIn ? (
-                          <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                            <CheckCircle className="w-3 h-3" /> {log.checkIn}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                              <CheckCircle className="w-3 h-3" /> {log.checkIn}
+                            </span>
+                            {log.status === 'LATE' && (
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-mono mt-0.5">
+                                {log.lateMinutes ? `${log.lateMinutes} mins late` : 'Late Check-In'}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-neutral-400">--:--</span>
                         )}
@@ -237,12 +244,17 @@ export const EmployeeAttendanceReport = ({
                         {weekItem.avgHours} hrs/day
                       </span>
                     </div>
+                    {weekItem.lateDays && weekItem.lateDays.length > 0 && (
+                      <div className="pt-1 text-[10px] text-amber-600 dark:text-amber-400 font-mono">
+                        Late: {weekItem.lateDays.join(', ')}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Below that week (number of leave) leave */}
                 <div className="pt-2 border-t border-neutral-200/60 dark:border-neutral-800/80 flex items-center justify-between">
-                  <span className="text-[10px] text-neutral-500 font-mono">Week Leaves:</span>
+                  <span className="text-[10px] text-neutral-500 font-mono font-medium">Week Leaves:</span>
                   {weekItem.leavesCount > 0 ? (
                     <Badge variant="warning" className="font-mono text-[10px]">
                       {weekItem.leavesCount} {weekItem.leavesCount > 1 ? 'leaves' : 'leave'}

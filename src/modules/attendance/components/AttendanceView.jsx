@@ -6,49 +6,75 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
-import { Clock, Search, MapPin, Download, Filter, BarChart2, Table } from 'lucide-react';
+import { Clock, Search, MapPin, Download, Filter, BarChart2, Table, UserCheck, Users } from 'lucide-react';
 import { AnimatedNumber } from '@/components/motion/animated-number';
 import { EmployeeAttendanceReport } from './EmployeeAttendanceReport';
 
 export const AttendanceView = ({ onOpenCheckIn }) => {
-  const { attendanceRecords, currentUser, activeRole, exportAttendanceExcel, leaveRequests } = useStore();
+  const { attendanceRecords = [], currentUser, activeRole, exportAttendanceExcel, leaveRequests = [] } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
-  const [activeSubTab, setActiveSubTab] = useState('REPORT'); // 'REPORT' or 'LEDGER'
+  const [adminViewMode, setAdminViewMode] = useState('ALL_STAFF'); // 'ALL_STAFF' or 'MY_ATTENDANCE'
+  const [employeeSubTab, setEmployeeSubTab] = useState('REPORT'); // 'REPORT' or 'LEDGER'
 
   const isAdmin = activeRole === 'ADMIN';
 
-  // Filter records by employee ID if non-admin user
+  // Compute My Personal Attendance Logs for currentUser dynamically
+  const myRecords = attendanceRecords.filter(a => a.employeeId === currentUser?.employeeId);
+
+  // Compute Current Week Mon-Fri logs dynamically for currentUser
+  const now = new Date();
+  const currentDayIdx = now.getDay(); // 0 is Sun, 1 is Mon...
+  const distanceToMon = currentDayIdx === 0 ? -6 : 1 - currentDayIdx;
+  const mondayDate = new Date(now);
+  mondayDate.setDate(now.getDate() + distanceToMon);
+
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const myWeeklyLogs = dayNames.map((dName, idx) => {
+    const dObj = new Date(mondayDate);
+    dObj.setDate(mondayDate.getDate() + idx);
+    const dateStr = dObj.toISOString().split('T')[0];
+
+    const matchedRec = myRecords.find(r => r.date === dateStr);
+    const matchedLeave = leaveRequests.find(l => 
+      l.employeeId === currentUser?.employeeId && 
+      l.status === 'APPROVED' &&
+      l.startDate <= dateStr &&
+      l.endDate >= dateStr
+    );
+
+    let status = matchedRec?.status || (matchedLeave ? 'ON_LEAVE' : 'PENDING');
+    if (!matchedRec && !matchedLeave && dObj < now) {
+      status = 'ABSENT';
+    }
+
+    return {
+      day: dName,
+      date: dateStr,
+      checkIn: matchedRec?.checkIn || null,
+      checkOut: matchedRec?.checkOut || null,
+      workingHours: matchedRec?.workingHours || 0,
+      status: status,
+      isLate: matchedRec?.isLate || false
+    };
+  });
+
+  // Calculate my current week stats
+  const myCheckIns = myWeeklyLogs.filter(l => l.checkIn);
+  const myCheckOuts = myWeeklyLogs.filter(l => l.checkOut);
+
+  // Filter records for All Staff Attendance table
   const roleAttendanceRecords = isAdmin
     ? attendanceRecords
-    : attendanceRecords.filter(a => a.employeeId === currentUser?.employeeId);
+    : myRecords;
 
-  // Generate Current Week Attendance Timings (Mon-Fri)
-  const currentWeekCheckInLogs = [
-    { day: 'Monday', date: '2026-08-03', checkIn: '09:22 AM', checkOut: '05:35 PM', workingHours: 8.2, status: 'PRESENT' },
-    { day: 'Tuesday', date: '2026-08-04', checkIn: '09:18 AM', checkOut: '05:42 PM', workingHours: 8.4, status: 'PRESENT' },
-    { day: 'Wednesday', date: '2026-08-05', checkIn: '09:48 AM', checkOut: '06:00 PM', workingHours: 8.2, status: 'LATE' },
-    { day: 'Thursday', date: '2026-08-06', checkIn: '09:25 AM', checkOut: '05:30 PM', workingHours: 8.1, status: 'PRESENT' },
-    { day: 'Friday', date: '2026-08-07', checkIn: '--:--', checkOut: '--:--', workingHours: 0, status: 'ON_LEAVE' },
-  ];
-
-  // Monthly Line Graph Data (Weekly Averages + Week Numbers + Leaves count)
-  // Added variation in check-in (9:15 - 9:45 AM) and check-out (5:20 - 5:50 PM) for visual curves
-  const monthlyGraphData = [
-    { weekNumber: 29, weekLabel: 'Week 1 (Jul 6 - Jul 10)', avgCheckIn: '09:15 AM', avgCheckInDecimal: 9.25, avgCheckOut: '05:45 PM', avgCheckOutDecimal: 17.75, avgHours: 8.5, leavesCount: 0 },
-    { weekNumber: 30, weekLabel: 'Week 2 (Jul 13 - Jul 17)', avgCheckIn: '09:35 AM', avgCheckInDecimal: 9.58, avgCheckOut: '05:25 PM', avgCheckOutDecimal: 17.42, avgHours: 7.8, leavesCount: 1 },
-    { weekNumber: 31, weekLabel: 'Week 3 (Jul 20 - Jul 24)', avgCheckIn: '09:12 AM', avgCheckInDecimal: 9.20, avgCheckOut: '05:50 PM', avgCheckOutDecimal: 17.83, avgHours: 8.6, leavesCount: 0 },
-    { weekNumber: 32, weekLabel: 'Week 4 (Jul 27 - Jul 31)', avgCheckIn: '09:42 AM', avgCheckInDecimal: 9.70, avgCheckOut: '05:20 PM', avgCheckOutDecimal: 17.33, avgHours: 7.6, leavesCount: 2 },
-    { weekNumber: 33, weekLabel: 'Week 5 (Aug 3 - Aug 7)', avgCheckIn: '09:23 AM', avgCheckInDecimal: 9.38, avgCheckOut: '05:35 PM', avgCheckOutDecimal: 17.58, avgHours: 8.3, leavesCount: 1 },
-  ];
-
-  const departments = Array.from(new Set(roleAttendanceRecords.map(a => a.department)));
+  const departments = Array.from(new Set(roleAttendanceRecords.map(a => a.department).filter(Boolean)));
 
   const filteredRecords = roleAttendanceRecords.filter(record => {
-    const matchesSearch = record.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          record.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          record.date.includes(searchQuery);
+    const matchesSearch = (record.employeeName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (record.employeeId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (record.date || '').includes(searchQuery);
     const matchesStatus = statusFilter === 'ALL' || record.status === statusFilter;
     const matchesDept = departmentFilter === 'ALL' || record.department === departmentFilter;
 
@@ -60,31 +86,58 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">
-            {isAdmin ? 'Attendance Audit Ledger' : 'My Attendance & Weekly Report'}
+            {isAdmin 
+              ? (adminViewMode === 'ALL_STAFF' ? 'Attendance Audit Ledger' : 'My Personal Attendance & Weekly Report')
+              : 'My Attendance & Weekly Report'}
           </h2>
           <p className="text-xs text-neutral-500 mt-0.5">
             {isAdmin 
-              ? 'Location-verified check-in logs and SLA compliance records' 
+              ? (adminViewMode === 'ALL_STAFF' ? 'Location-verified check-in logs and SLA compliance records for all staff' : 'Your personal check-in/out timings and weekly analytics')
               : 'Weekly check-in/out timings, monthly trends, and daily logs'}
           </p>
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
-          {!isAdmin && (
-            <div className="flex items-center p-1 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs mr-2">
+          {/* Admin Switch View: Toggle between All Staff Attendance and My Personal Attendance */}
+          {isAdmin ? (
+            <div className="flex items-center p-1 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs">
               <button
-                onClick={() => setActiveSubTab('REPORT')}
-                className={`px-3 py-1 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
-                  activeSubTab === 'REPORT'
+                onClick={() => setAdminViewMode('ALL_STAFF')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                  adminViewMode === 'ALL_STAFF'
                     ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
                     : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                 }`}
               >
-                <BarChart2 className="w-3.5 h-3.5" /> Weekly & Monthly Report
+                <Users className="w-3.5 h-3.5" /> All Staff Attendance
               </button>
               <button
-                onClick={() => setActiveSubTab('LEDGER')}
+                onClick={() => setAdminViewMode('MY_ATTENDANCE')}
+                className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                  adminViewMode === 'MY_ATTENDANCE'
+                    ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5" /> My Personal Attendance Track
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center p-1 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs">
+              <button
+                onClick={() => setEmployeeSubTab('REPORT')}
                 className={`px-3 py-1 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
-                  activeSubTab === 'LEDGER'
+                  employeeSubTab === 'REPORT'
+                    ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
+                    : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                }`}
+              >
+                <BarChart2 className="w-3.5 h-3.5" /> Weekly &amp; Monthly Report
+              </button>
+              <button
+                onClick={() => setEmployeeSubTab('LEDGER')}
+                className={`px-3 py-1 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                  employeeSubTab === 'LEDGER'
                     ? 'bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm'
                     : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
                 }`}
@@ -94,21 +147,30 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
             </div>
           )}
 
-          <Button onClick={exportAttendanceExcel} variant="outline" size="sm" className="text-xs">
-            <Download className="w-3.5 h-3.5" /> Export Excel (.csv)
-          </Button>
+          {isAdmin && (
+            <Button onClick={exportAttendanceExcel} variant="outline" size="sm" className="text-xs">
+              <Download className="w-3.5 h-3.5" /> Export Excel (.csv)
+            </Button>
+          )}
           <Button onClick={onOpenCheckIn} size="sm" className="text-xs">
             <Clock className="w-3.5 h-3.5" /> GPS Check In
           </Button>
         </div>
       </div>
 
-      {!isAdmin && activeSubTab === 'REPORT' ? (
+      {/* Render My Personal Attendance Report if Employee OR if Admin selected MY_ATTENDANCE */}
+      {(!isAdmin && employeeSubTab === 'REPORT') || (isAdmin && adminViewMode === 'MY_ATTENDANCE') ? (
         <EmployeeAttendanceReport
-          weeklyCheckInLogs={currentWeekCheckInLogs}
-          monthlyGraphData={monthlyGraphData}
-          weeklyAvgStats={{ avgCheckIn: '09:21 AM', avgCheckOut: '05:36 PM', avgHours: 8.3 }}
-          leaveCountThisWeek={1}
+          weeklyCheckInLogs={myWeeklyLogs}
+          monthlyGraphData={[
+            { weekNumber: 32, weekLabel: 'Current Week', avgCheckIn: myCheckIns.length > 0 ? myCheckIns[0].checkIn : '--:--', avgCheckInDecimal: 9.3, avgCheckOut: myCheckOuts.length > 0 ? myCheckOuts[0].checkOut : '--:--', avgCheckOutDecimal: 17.5, avgHours: 8.2, leavesCount: 0 }
+          ]}
+          weeklyAvgStats={{
+            avgCheckIn: myCheckIns.length > 0 ? myCheckIns[0].checkIn : '--:--',
+            avgCheckOut: myCheckOuts.length > 0 ? myCheckOuts[0].checkOut : '--:--',
+            avgHours: 8.2
+          }}
+          leaveCountThisWeek={0}
         />
       ) : (
         <>
@@ -164,9 +226,11 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
                   <CardTitle>Attendance Log Table</CardTitle>
                   <CardDescription>Showing <AnimatedNumber value={filteredRecords.length} /> recorded entries</CardDescription>
                 </div>
-                <Button onClick={exportAttendanceExcel} variant="ghost" size="sm" className="text-xs">
-                  <Download className="w-3.5 h-3.5" /> Export Data
-                </Button>
+                {isAdmin && (
+                  <Button onClick={exportAttendanceExcel} variant="ghost" size="sm" className="text-xs">
+                    <Download className="w-3.5 h-3.5" /> Export Data
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-0">
