@@ -98,7 +98,10 @@ export const LoginView = () => {
         email: targetEmail,
         role: userRole,
         full_name: employee.full_name || targetEmail,
-        department: employee.department || 'Staff'
+        department: employee.department || 'Staff',
+        avatarStyle: employee.avatar_style,
+        avatarSeed: employee.avatar_seed,
+        avatar: employee.avatar
       };
 
       setAuthenticatedUser(authPayload);

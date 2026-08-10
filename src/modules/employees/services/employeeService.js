@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabaseClient';
+import { profileService } from '@/modules/profile/services/profileService';
 
 export const employeeService = {
   // Fetch real employee list from SDS_Employees table with silent fallback
@@ -25,17 +26,25 @@ export const employeeService = {
         .map(emp => {
           const email = emp.email || emp.email_address || 'staff@spiritdatasolutions.com';
           const name = emp.full_name || emp.name || emp.employee_name || email;
-          // Fetch real email profile picture (Gravatar/Google/Workspace) by email
-          const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff&bold=true`;
-          const emailAvatar = `https://unavatar.io/${encodeURIComponent(email)}?fallback=${encodeURIComponent(fallbackAvatar)}`;
-          const avatarUrl = emp.avatar || emp.avatar_url || emailAvatar;
+          const empIdStr = emp.employee_id || emp.employeeId || emp.id || 'SDS-1001';
+          const localCache = profileService.getLocalAvatar(email);
+
+          const avatarStyle = emp.avatar_style || localCache?.avatarStyle || 'lorelei';
+          const avatarSeed = emp.avatar_seed || localCache?.avatarSeed || empIdStr;
+          const diceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
+          
+          const avatarUrl = (emp.avatar && !emp.avatar.includes('ui-avatars') && !emp.avatar.includes('unavatar.io'))
+            ? emp.avatar
+            : diceBearUrl;
 
           return {
             id: emp.id || emp.employee_id || `emp-${Math.random()}`,
-            employeeId: emp.employee_id || emp.employeeId || emp.id || 'SDS-1001',
+            employeeId: empIdStr,
             auth_id: emp.auth_id || emp.authId || emp.id,
             name: name,
             email: email,
+            avatarStyle: avatarStyle,
+            avatarSeed: avatarSeed,
             avatar: avatarUrl,
             role: (emp.role || emp.system_role || 'EMPLOYEE').toUpperCase(),
             department: emp.department || emp.dept || 'Engineering',

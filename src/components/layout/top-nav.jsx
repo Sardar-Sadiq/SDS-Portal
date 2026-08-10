@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useStore } from '@/context/store-context';
 import { Search, Clock, Menu } from 'lucide-react';
-import { Avatar } from '@/components/ui/avatar';
+import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
 import { ThemeToggle } from '@/components/motion/theme-toggle';
 
 export const TopNav = ({
@@ -102,7 +102,13 @@ export const TopNav = ({
               {currentUser?.designation}
             </p>
           </div>
-          <Avatar src={currentUser?.avatar} name={currentUser?.name || 'User'} size="md" />
+          <EmployeeAvatar
+            style={currentUser?.avatarStyle}
+            seed={currentUser?.avatarSeed || currentUser?.employeeId || currentUser?.id}
+            src={currentUser?.avatar}
+            name={currentUser?.name || 'User'}
+            size="md"
+          />
         </button>
       </div>
     </header>

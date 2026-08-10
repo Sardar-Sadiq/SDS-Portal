@@ -5,7 +5,7 @@ import { useStore } from '@/context/store-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
+import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
 import { AddRemarkModal } from '@/modules/remarks/components/AddRemarkModal';
 import { 
   ArrowLeft, 
@@ -65,7 +65,13 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
       <Card className="p-4">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <Avatar src={emp?.avatar} name={emp?.name || 'Employee'} size="xl" />
+            <EmployeeAvatar
+              style={emp?.avatarStyle}
+              seed={emp?.avatarSeed || emp?.employeeId || emp?.id}
+              src={emp?.avatar}
+              name={emp?.name || 'Employee'}
+              size="xl"
+            />
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h2 className="text-xl font-bold text-neutral-900 dark:text-white tracking-tight">{emp?.name || 'Employee Profile'}</h2>

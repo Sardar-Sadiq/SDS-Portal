@@ -5,7 +5,7 @@ import { useStore } from '@/context/store-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
+import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
 import { Users, UserCheck, UserX, Clock, CalendarOff, AlertTriangle, UserPlus, ChevronRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { AnimatedNumber } from '@/components/motion/animated-number';
@@ -206,7 +206,13 @@ export const AdminDashboard = ({
                     className="p-3 rounded-lg border border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/60 cursor-pointer transition-colors flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
-                      <Avatar src={record.avatar} name={record.employeeName} size="md" />
+                      <EmployeeAvatar
+                        style={record.avatarStyle}
+                        seed={record.avatarSeed || record.employeeId}
+                        src={record.avatar}
+                        name={record.employeeName}
+                        size="md"
+                      />
                       <div>
                         <p className="text-xs font-semibold text-neutral-900 dark:text-white">{record.employeeName}</p>
                         <p className="text-[10px] text-neutral-400">{record.department} • {record.checkIn || 'No Log'}</p>
@@ -245,7 +251,13 @@ export const AdminDashboard = ({
                   <div key={leave.id} className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/40 space-y-2">
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
-                        <Avatar src={leave.avatar} name={leave.employeeName} size="sm" />
+                        <EmployeeAvatar
+                          style={leave.avatarStyle}
+                          seed={leave.avatarSeed || leave.employeeId}
+                          src={leave.avatar}
+                          name={leave.employeeName}
+                          size="sm"
+                        />
                         <div>
                           <p className="text-xs font-semibold text-neutral-900 dark:text-white">{leave.employeeName}</p>
                           <p className="text-[10px] text-neutral-400">{leave.leaveType} • {leave.totalDays} Days</p>

@@ -1,21 +1,21 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { useStore } from '@/context/store-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { EmployeeAvatar } from './EmployeeAvatar';
+import { AvatarPicker } from './AvatarPicker';
 import { AddRemarkModal } from '@/modules/remarks/components/AddRemarkModal';
-import { Mail, Phone, MapPin, Award, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Award, Plus, Pencil, Trash2, Palette } from 'lucide-react';
 import { AnimatedNumber } from '@/components/motion/animated-number';
 
 import { isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
 
 export const ProfileView = () => {
-  const { currentUser, remarks, activeRole, deleteRemark, notifications, dismissNotification } = useStore();
+  const { currentUser, remarks, activeRole, deleteRemark, notifications, dismissNotification, updateUserAvatar } = useStore();
   const [isRemarkModalOpen, setIsRemarkModalOpen] = useState(false);
   const [editingRemark, setEditingRemark] = useState(null);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
   // Auto-clear remark notifications once the employee checks their profile
   useEffect(() => {
@@ -51,22 +51,51 @@ export const ProfileView = () => {
   return (
     <div className="space-y-6">
       <Card className="p-4">
-        <div className="flex flex-col sm:flex-row items-center gap-5">
-          <Avatar src={currentUser.avatar} name={currentUser.name} size="xl" />
-          <div className="space-y-1 text-center sm:text-left">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">{currentUser.name}</h2>
-              <Badge variant="outline" className="font-mono text-xs">
-                {currentUser.role}
-              </Badge>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
+          <div className="flex flex-col sm:flex-row items-center gap-5">
+            <div className="relative group">
+              <EmployeeAvatar
+                style={currentUser.avatarStyle}
+                seed={currentUser.avatarSeed || currentUser.employeeId || currentUser.id}
+                src={currentUser.avatar}
+                name={currentUser.name}
+                size="xl"
+              />
+              <button
+                type="button"
+                onClick={() => setIsAvatarPickerOpen(true)}
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-md hover:scale-105 active:scale-95 transition-transform"
+                title="Change Avatar"
+              >
+                <Palette className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <p className="text-xs text-neutral-500">{currentUser.designation} • {currentUser.department}</p>
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-neutral-400 font-mono pt-0.5">
-              <span>ID: {currentUser.employeeId}</span>
-              <span>•</span>
-              <span>Joined: {currentUser.joiningDate}</span>
+
+            <div className="space-y-1 text-center sm:text-left">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">{currentUser.name}</h2>
+                <Badge variant="outline" className="font-mono text-xs">
+                  {currentUser.role}
+                </Badge>
+              </div>
+              <p className="text-xs text-neutral-500">{currentUser.designation} • {currentUser.department}</p>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs text-neutral-400 font-mono pt-0.5">
+                <span>ID: {currentUser.employeeId}</span>
+                <span>•</span>
+                <span>Joined: {currentUser.joiningDate}</span>
+              </div>
             </div>
           </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAvatarPickerOpen(true)}
+            className="text-xs font-semibold shrink-0"
+          >
+            <Palette className="w-3.5 h-3.5 mr-1.5" /> Change Avatar
+          </Button>
         </div>
       </Card>
 
@@ -199,6 +228,14 @@ export const ProfileView = () => {
         employeeId={currentUser.employeeId}
         employeeName={currentUser.name}
         editingRemark={editingRemark}
+      />
+
+      <AvatarPicker
+        isOpen={isAvatarPickerOpen}
+        onClose={() => setIsAvatarPickerOpen(false)}
+        currentStyle={currentUser.avatarStyle || 'lorelei'}
+        currentSeed={currentUser.avatarSeed || currentUser.employeeId || currentUser.id}
+        onSave={updateUserAvatar}
       />
     </div>
   );

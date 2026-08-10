@@ -5,7 +5,7 @@ import { useStore } from '@/context/store-context';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
+import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
 import { Search, UserPlus, ChevronRight, MoreVertical, Trash2, User, BarChart2 } from 'lucide-react';
 
 export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
@@ -126,7 +126,13 @@ export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
                       >
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
-                            <Avatar src={emp.avatar} name={emp.name} size="md" />
+                            <EmployeeAvatar
+                              style={emp.avatarStyle}
+                              seed={emp.avatarSeed || emp.employeeId || emp.id}
+                              src={emp.avatar}
+                              name={emp.name}
+                              size="md"
+                            />
                             <div>
                               <p className="font-bold text-neutral-900 dark:text-white flex items-center gap-1.5">
                                 {emp.name}

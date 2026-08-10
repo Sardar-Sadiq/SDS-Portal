@@ -5,7 +5,7 @@ import { useStore } from '@/context/store-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar } from '@/components/ui/avatar';
+import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
 import { LeaveBalanceCard } from './LeaveBalanceCard';
 import { ApplyLeaveModal } from './ApplyLeaveModal';
 import { Plus, Download } from 'lucide-react';
@@ -109,7 +109,13 @@ export const LeaveManagementView = () => {
                     <tr key={req.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <Avatar src={req.avatar} name={req.employeeName} size="md" />
+                          <EmployeeAvatar
+                            style={req.avatarStyle}
+                            seed={req.avatarSeed || req.employeeId}
+                            src={req.avatar}
+                            name={req.employeeName}
+                            size="md"
+                          />
                           <div>
                             <p className="font-semibold text-neutral-900 dark:text-white">{req.employeeName}</p>
                             <p className="text-[10px] text-neutral-400">{req.department}</p>

@@ -8,6 +8,7 @@ import { attendanceService } from '@/modules/attendance/services/attendanceServi
 import { leaveService } from '@/modules/leave/services/leaveService';
 import { employeeService } from '@/modules/employees/services/employeeService';
 import { remarkService, isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
+import { profileService } from '@/modules/profile/services/profileService';
 
 
 
@@ -88,9 +89,13 @@ export const StoreProvider = ({ children }) => {
             const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
             const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
 
-            const authAvatar = session.user?.user_metadata?.avatar_url || session.user?.user_metadata?.picture;
-            const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(employee.full_name || session.user.email)}&background=10b981&color=fff&bold=true`;
-            const userAvatar = employee.avatar || authAvatar || fallbackAvatar;
+            const localCache = profileService.getLocalAvatar(userEmail);
+            const avatarStyle = employee.avatar_style || localCache?.avatarStyle || 'lorelei';
+            const avatarSeed = employee.avatar_seed || localCache?.avatarSeed || employee.id || session.user.id;
+            const diceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
+            const userAvatar = (employee.avatar && !employee.avatar.includes('ui-avatars') && !employee.avatar.includes('unavatar.io'))
+              ? employee.avatar
+              : diceBearUrl;
 
             const userObj = {
               id: employee.id || session.user.id,
@@ -105,6 +110,8 @@ export const StoreProvider = ({ children }) => {
               phone: employee.phone || '+91 98765 43210',
               manager: employee.manager || 'Sardar Sadiq',
               joiningDate: employee.joiningDate || '2024-01-15',
+              avatarStyle: avatarStyle,
+              avatarSeed: avatarSeed,
               avatar: userAvatar,
               officeLocation: employee.officeLocation || defaultOfficeLocation,
               leaveBalance: employee.leaveBalance || defaultLeaveBalance
@@ -301,6 +308,12 @@ export const StoreProvider = ({ children }) => {
     const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
     const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
 
+    const localCache = profileService.getLocalAvatar(payload.email);
+    const avatarStyle = payload.avatarStyle || payload.avatar_style || localCache?.avatarStyle || 'lorelei';
+    const avatarSeed = payload.avatarSeed || payload.avatar_seed || localCache?.avatarSeed || payload.id;
+    const diceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
+    const userAvatar = payload.avatar || localCache?.avatarUrl || diceBearUrl;
+
     const userObj = {
       id: payload.id,
       employeeId: payload.id,
@@ -314,7 +327,9 @@ export const StoreProvider = ({ children }) => {
       phone: payload.phone || '+91 98765 43210',
       manager: payload.manager || 'Sardar Sadiq',
       joiningDate: payload.joiningDate || '2024-01-15',
-      avatar: payload.avatar || '',
+      avatarStyle: avatarStyle,
+      avatarSeed: avatarSeed,
+      avatar: userAvatar,
       officeLocation: payload.officeLocation || defaultOfficeLocation,
       leaveBalance: payload.leaveBalance || defaultLeaveBalance
     };
@@ -847,6 +862,60 @@ export const StoreProvider = ({ children }) => {
     setOfficeSettings(prev => ({ ...prev, ...newSettings }));
   };
 
+  const updateUserAvatar = async ({ avatarStyle, avatarSeed }) => {
+    if (!currentUser) return;
+
+    const newDiceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
+
+    // Optimistically update local currentUser & employees state immediately
+    setCurrentUser(prev => prev ? {
+      ...prev,
+      avatarStyle,
+      avatarSeed,
+      avatar: newDiceBearUrl
+    } : prev);
+
+    setEmployees(prev => prev.map(emp => {
+      if (emp.id === currentUser.id || emp.employeeId === currentUser.employeeId || emp.auth_id === currentUser.auth_id) {
+        return {
+          ...emp,
+          avatarStyle,
+          avatarSeed,
+          avatar: newDiceBearUrl
+        };
+      }
+      return emp;
+    }));
+
+    // Update Supabase SDS_Employees table via profileService
+    try {
+      const result = await profileService.updateAvatarStyleAndSeed({
+        employeeId: currentUser.employeeId,
+        authId: currentUser.auth_id,
+        email: currentUser.email,
+        avatarStyle,
+        avatarSeed
+      });
+
+      if (result.success) {
+        showToast({
+          title: "Avatar Saved Successfully",
+          description: `Your avatar style (${avatarStyle}) has been saved.`,
+          status: "success"
+        });
+      } else {
+        console.warn('StoreProvider: Supabase avatar save returned non-success result', result);
+        showToast({
+          title: "Avatar Updated Locally",
+          description: "Saved in session. Connect database permissions to update cloud record.",
+          status: "info"
+        });
+      }
+    } catch (err) {
+      console.error('StoreProvider: Failed to persist avatar update to Supabase —', err.message);
+    }
+  };
+
   const markNotificationAsRead = (id) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
@@ -1026,6 +1095,7 @@ export const StoreProvider = ({ children }) => {
         editHoliday,
         deleteHoliday,
         updateSettings,
+        updateUserAvatar,
         exportAttendanceExcel
       }}
     >

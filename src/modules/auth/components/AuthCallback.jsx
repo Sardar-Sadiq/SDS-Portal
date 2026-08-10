@@ -188,7 +188,10 @@ export const AuthCallback = () => {
           email: userEmail,
           role: userRole,
           full_name,
-          department: employee.department || ''
+          department: employee.department || '',
+          avatarStyle: employee.avatar_style,
+          avatarSeed: employee.avatar_seed,
+          avatar: employee.avatar
         };
 
         console.log('AuthCallback: Auth successful, setting user payload:', authPayload);
