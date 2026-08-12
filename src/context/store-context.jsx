@@ -14,11 +14,38 @@ import { profileService } from '@/modules/profile/services/profileService';
 
 const StoreContext = createContext(undefined);
 
+// ── Session persistence helpers ───────────────────────────────────────────────
+const SESSION_STORAGE_KEY = 'sds_current_user';
+
+function saveUserToSession(userObj) {
+  try {
+    if (userObj) {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(userObj));
+    } else {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    }
+  } catch (e) { /* ignore quota errors */ }
+}
+
+function loadUserFromSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const StoreProvider = ({ children }) => {
   const { toasts, showToast, dismissToast, clearToasts } = useAnimatedToastStack();
-  const [currentUser, setCurrentUser] = useState(null);
-  const [activeRole, setActiveRole] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  // Restore user from sessionStorage instantly on page refresh — prevents flicker to /login
+  const [currentUser, setCurrentUser] = useState(() => loadUserFromSession());
+  const [activeRole, setActiveRole] = useState(() => {
+    const saved = loadUserFromSession();
+    return saved?.role || null;
+  });
+  // Start with authLoading=false if we have a cached user (avoids spinner on refresh)
+  const [authLoading, setAuthLoading] = useState(() => !loadUserFromSession());
   const [employees, setEmployees] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState(INITIAL_ATTENDANCE);
   const [leaveRequests, setLeaveRequests] = useState([]);
@@ -121,14 +148,27 @@ export const StoreProvider = ({ children }) => {
             };
             setCurrentUser(userObj);
             setActiveRole(roleUpper);
+            saveUserToSession(userObj);
           } else if (isMounted) {
-            await supabase.auth.signOut();
+            // Only sign out if we are sure the DB is accessible but the employee is NOT found
+            // (don't aggressively sign out on network failures)
+            if (sdsData !== null) {
+              await supabase.auth.signOut();
+              setCurrentUser(null);
+              setActiveRole(null);
+              saveUserToSession(null);
+            }
+          }
+        } else if (isMounted) {
+          // No Supabase OAuth session — but Email SSO users never get a Supabase session token.
+          // Only clear the user if there is no valid sessionStorage restore.
+          // If sessionStorage has a user, keep them logged in (Email SSO refresh path).
+          const restoredUser = loadUserFromSession();
+          if (!restoredUser) {
             setCurrentUser(null);
             setActiveRole(null);
           }
-        } else if (isMounted) {
-          setCurrentUser(null);
-          setActiveRole(null);
+          // If restoredUser exists: state is already correct from useState initializer — do nothing.
         }
       } catch (err) {
         console.error('StoreProvider: Supabase session sync error', err);
@@ -339,12 +379,14 @@ export const StoreProvider = ({ children }) => {
     setCurrentUser(userObj);
     setActiveRole(roleUpper);
     setAuthLoading(false);
+    saveUserToSession(userObj);
   };
 
   const clearAuth = () => {
     setCurrentUser(null);
     setActiveRole(null);
     setAuthLoading(false);
+    saveUserToSession(null);
   };
 
   const loginWithGoogle = async () => {
@@ -368,6 +410,7 @@ export const StoreProvider = ({ children }) => {
     setCurrentUser(null);
     setActiveRole(null);
     setAuthLoading(false);
+    saveUserToSession(null);
   };
 
   const checkIn = (coords) => {
