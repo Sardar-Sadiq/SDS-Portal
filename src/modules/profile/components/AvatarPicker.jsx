@@ -8,11 +8,11 @@ import { Shuffle, Check, Sparkles, RefreshCw, User, UserCheck } from 'lucide-rea
 export const AvatarPicker = ({
   isOpen,
   onClose,
-  currentStyle = 'lorelei',
+  currentStyle = 'bottts',
   currentSeed = '',
   onSave
 }) => {
-  const [selectedStyle, setSelectedStyle] = useState(currentStyle || 'lorelei');
+  const [selectedStyle, setSelectedStyle] = useState(currentStyle || 'bottts');
   const [selectedSeed, setSelectedSeed] = useState(currentSeed || '');
   const [seedInput, setSeedInput] = useState('');
   const [genderFilter, setGenderFilter] = useState('all'); // 'all', 'male', 'female'
@@ -21,7 +21,7 @@ export const AvatarPicker = ({
   // Sync props when modal opens
   useEffect(() => {
     if (isOpen) {
-      const initialStyle = currentStyle || 'lorelei';
+      const initialStyle = currentStyle || 'bottts';
       const initialSeed = currentSeed || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `emp-${Date.now()}`);
       
       // Auto-detect gender preference if seed starts with male_ or female_
@@ -63,12 +63,6 @@ export const AvatarPicker = ({
 
   const handleGenderChange = (newGender) => {
     setGenderFilter(newGender);
-    // If switching to male, default style to adventurer or micah if lorelei was selected
-    if (newGender === 'male' && selectedStyle === 'lorelei') {
-      setSelectedStyle('adventurer');
-    } else if (newGender === 'female' && (selectedStyle === 'bottts' || selectedStyle === 'identicon')) {
-      setSelectedStyle('lorelei');
-    }
     generateRandomSeed(newGender);
   };
 

@@ -90,7 +90,7 @@ export const StoreProvider = ({ children }) => {
             const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
 
             const localCache = profileService.getLocalAvatar(userEmail);
-            const avatarStyle = employee.avatar_style || localCache?.avatarStyle || 'lorelei';
+            const avatarStyle = employee.avatar_style || localCache?.avatarStyle || 'bottts';
             const avatarSeed = employee.avatar_seed || localCache?.avatarSeed || employee.id || session.user.id;
             const diceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
             const userAvatar = (employee.avatar && !employee.avatar.includes('ui-avatars') && !employee.avatar.includes('unavatar.io'))
@@ -309,7 +309,7 @@ export const StoreProvider = ({ children }) => {
     const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
 
     const localCache = profileService.getLocalAvatar(payload.email);
-    const avatarStyle = payload.avatarStyle || payload.avatar_style || localCache?.avatarStyle || 'lorelei';
+    const avatarStyle = payload.avatarStyle || payload.avatar_style || localCache?.avatarStyle || 'bottts';
     const avatarSeed = payload.avatarSeed || payload.avatar_seed || localCache?.avatarSeed || payload.id;
     const diceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
     const userAvatar = payload.avatar || localCache?.avatarUrl || diceBearUrl;

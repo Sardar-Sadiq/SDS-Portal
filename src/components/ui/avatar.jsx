@@ -3,7 +3,7 @@ import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
 
 export const Avatar = ({
   src,
-  style = 'lorelei',
+  style = 'bottts',
   seed,
   name = 'User',
   size = 'md',

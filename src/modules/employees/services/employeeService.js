@@ -29,7 +29,7 @@ export const employeeService = {
           const empIdStr = emp.employee_id || emp.employeeId || emp.id || 'SDS-1001';
           const localCache = profileService.getLocalAvatar(email);
 
-          const avatarStyle = emp.avatar_style || localCache?.avatarStyle || 'lorelei';
+          const avatarStyle = emp.avatar_style || localCache?.avatarStyle || 'bottts';
           const avatarSeed = emp.avatar_seed || localCache?.avatarSeed || empIdStr;
           const diceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
           

@@ -233,7 +233,7 @@ export const ProfileView = () => {
       <AvatarPicker
         isOpen={isAvatarPickerOpen}
         onClose={() => setIsAvatarPickerOpen(false)}
-        currentStyle={currentUser.avatarStyle || 'lorelei'}
+        currentStyle={currentUser.avatarStyle || 'bottts'}
         currentSeed={currentUser.avatarSeed || currentUser.employeeId || currentUser.id}
         onSave={updateUserAvatar}
       />

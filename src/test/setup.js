@@ -28,4 +28,17 @@ if (typeof window !== 'undefined') {
   if (!URL.createObjectURL) {
     URL.createObjectURL = vi.fn().mockReturnValue('blob:mock-url');
   }
+
+  class MockWebSocket {
+    constructor() {
+      this.readyState = 1;
+    }
+    send() {}
+    close() {}
+    addEventListener() {}
+    removeEventListener() {}
+    dispatchEvent() { return true; }
+  }
+  window.WebSocket = MockWebSocket;
+  global.WebSocket = MockWebSocket;
 }

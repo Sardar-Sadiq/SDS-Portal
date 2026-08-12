@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 export function EmployeeAvatar({
-  style = 'lorelei',
+  style = 'bottts',
   seed,
   size = 40,
   className = '',

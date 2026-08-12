@@ -1,14 +1,10 @@
 import { supabase } from '@/lib/supabaseClient';
 
 export const SUPPORTED_AVATAR_STYLES = [
-  { id: 'lorelei', name: 'Lorelei', category: 'Illustrated Vector', gender: 'female' },
-  { id: 'adventurer', name: 'Adventurer', category: 'Illustrated Portrait', gender: 'all' },
-  { id: 'micah', name: 'Micah', category: 'Modern Work', gender: 'all' },
-  { id: 'notionists', name: 'Notionists', category: 'Minimalist Sketch', gender: 'all' },
-  { id: 'avataaars', name: 'Avataaars', category: 'Classic Cartoon', gender: 'all' },
-  { id: 'personas', name: 'Personas', category: 'Diverse Characters', gender: 'all' },
   { id: 'bottts', name: 'Bottts', category: 'Tech Robot', gender: 'all' },
+  { id: 'notionists', name: 'Notionists', category: 'Minimalistic Shape', gender: 'all' },
   { id: 'shapes', name: 'Shapes', category: 'Abstract Geometric', gender: 'all' },
+  { id: 'micah', name: 'Micah', category: 'Modern Work', gender: 'all' },
   { id: 'identicon', name: 'Identicon', category: 'Security Hash', gender: 'all' }
 ];
 
@@ -21,8 +17,8 @@ export const profileService = {
   /**
    * Generates a stable DiceBear v10 SVG URL given style and seed string.
    */
-  getDiceBearUrl(style = 'lorelei', seed = 'default') {
-    const cleanStyle = style || 'lorelei';
+  getDiceBearUrl(style = 'bottts', seed = 'default') {
+    const cleanStyle = style || 'bottts';
     const cleanSeed = seed || 'default';
     return `https://api.dicebear.com/10.x/${encodeURIComponent(cleanStyle)}/svg?seed=${encodeURIComponent(cleanSeed)}`;
   },
