@@ -62,10 +62,13 @@ export const StoreProvider = ({ children }) => {
           let employee = null;
           let sdsData = null;
 
+          // Query only the logged-in user's row — prevents full-table scan on concurrent logins
           try {
             const { data } = await supabase
               .from('SDS_Employees')
-              .select('*');
+              .select('*')
+              .ilike('email', userEmail)
+              .limit(1);
             sdsData = data;
           } catch (e) {
             sdsData = null;

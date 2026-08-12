@@ -1,5 +1,43 @@
 import { supabase } from '@/lib/supabaseClient';
 
+// ── In-memory avatar cache with TTL + max-size eviction ─────────────────────
+// Acts as L1 cache so repeated reads never hit localStorage.
+// Max 50 entries (way more than 18 employees), TTL = 30 minutes.
+const AVATAR_CACHE_MAX = 50;
+const AVATAR_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
+const _avatarMemCache = new Map(); // key → { payload, expiresAt }
+
+function _cacheSet(key, payload) {
+  // Evict oldest entry when at capacity
+  if (_avatarMemCache.size >= AVATAR_CACHE_MAX) {
+    const oldestKey = _avatarMemCache.keys().next().value;
+    _avatarMemCache.delete(oldestKey);
+  }
+  _avatarMemCache.set(key, { payload, expiresAt: Date.now() + AVATAR_CACHE_TTL_MS });
+}
+
+function _cacheGet(key) {
+  const entry = _avatarMemCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    _avatarMemCache.delete(key);
+    return null;
+  }
+  return entry.payload;
+}
+
+function _clearSdsAvatarLocalStorage() {
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('sds_avatar_')) keysToRemove.push(k);
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (e) { /* silent */ }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const SUPPORTED_AVATAR_STYLES = [
   { id: 'bottts', name: 'Bottts', category: 'Tech Robot', gender: 'all' },
   { id: 'notionists', name: 'Notionists', category: 'Minimalistic Shape', gender: 'all' },
@@ -39,34 +77,50 @@ export const profileService = {
   },
 
   /**
-   * Save avatar selection to browser localStorage per employee email.
+   * Save avatar selection — writes to in-memory cache first, then localStorage.
+   * Handles QuotaExceededError by clearing old sds_avatar_* entries and retrying once.
    */
   saveLocalAvatar(email, avatarStyle, avatarSeed) {
     if (!email) return;
+    const key = `sds_avatar_${email.trim().toLowerCase()}`;
+    const payload = {
+      avatarStyle,
+      avatarSeed,
+      avatarUrl: this.getDiceBearUrl(avatarStyle, avatarSeed),
+      updatedAt: new Date().toISOString()
+    };
+    // Always update in-memory cache first (never throws)
+    _cacheSet(key, payload);
+    // Persist to localStorage with quota guard
+    const writeToLS = () => localStorage.setItem(key, JSON.stringify(payload));
     try {
-      const key = `sds_avatar_${email.trim().toLowerCase()}`;
-      const payload = {
-        avatarStyle,
-        avatarSeed,
-        avatarUrl: this.getDiceBearUrl(avatarStyle, avatarSeed),
-        updatedAt: new Date().toISOString()
-      };
-      localStorage.setItem(key, JSON.stringify(payload));
-    } catch (e) {}
+      writeToLS();
+    } catch (e) {
+      if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+        _clearSdsAvatarLocalStorage();
+        try { writeToLS(); } catch (_) { /* give up gracefully */ }
+      }
+    }
   },
 
   /**
-   * Get cached avatar selection from browser localStorage per employee email.
+   * Get cached avatar — reads in-memory cache first (O(1)), then localStorage.
    */
   getLocalAvatar(email) {
     if (!email) return null;
+    const key = `sds_avatar_${email.trim().toLowerCase()}`;
+    // Fast path: in-memory cache hit
+    const memHit = _cacheGet(key);
+    if (memHit) return memHit;
+    // Slow path: localStorage
     try {
-      const key = `sds_avatar_${email.trim().toLowerCase()}`;
       const item = localStorage.getItem(key);
       if (item) {
-        return JSON.parse(item);
+        const parsed = JSON.parse(item);
+        _cacheSet(key, parsed); // warm the memory cache
+        return parsed;
       }
-    } catch (e) {}
+    } catch (e) { /* ignore parse/access errors */ }
     return null;
   },
 

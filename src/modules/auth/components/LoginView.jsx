@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabaseClient';
 import { useStore } from '@/context/store-context';
 import { Button } from '@/components/ui/button';
-import { Shield, Lock, AlertCircle, Loader2, Mail, ArrowRight, UserCheck, CheckCircle2 } from 'lucide-react';
+import { Shield, Lock, AlertCircle, Loader2, Mail, ArrowRight } from 'lucide-react';
 
 export const LoginView = () => {
   const navigate = useNavigate();
@@ -35,12 +35,7 @@ export const LoginView = () => {
     bannerMessage = msgParam || 'Authentication failed. Please try again.';
   }
 
-  // Registered SDS employees list for 1-click login convenience
-  const AUTHORIZED_ACCOUNTS = [
-    { email: 'sardarsadiq001@gmail.com', name: 'Sardar Sadiq', role: 'Admin', department: 'Manager' },
-    { email: 'sadiqali66657@gmail.com', name: 'Sardar', role: 'Employee', department: 'Developer' },
-    { email: 'sardarsadiq106@gmail.com', name: 'ALI', role: 'Employee', department: 'Developer' }
-  ];
+
 
   const handleDirectEmailLogin = async (e, directEmail) => {
     if (e) e.preventDefault();
@@ -60,7 +55,9 @@ export const LoginView = () => {
       try {
         const { data: sdsRows } = await supabase
           .from('SDS_Employees')
-          .select('*');
+          .select('*')
+          .ilike('email', targetEmail)
+          .limit(1);
 
         if (sdsRows && sdsRows.length > 0) {
           employee = sdsRows.find(
@@ -71,19 +68,7 @@ export const LoginView = () => {
         // Silent query fallback
       }
 
-      // 2. Hardcoded fallback matching against SDS registered employee allowlist
-      if (!employee) {
-        const foundLocal = AUTHORIZED_ACCOUNTS.find(acc => acc.email === targetEmail);
-        if (foundLocal) {
-          employee = {
-            id: foundLocal.email === 'sardarsadiq001@gmail.com' ? '556836_IN' : '123456_IN',
-            email: foundLocal.email,
-            full_name: foundLocal.name,
-            role: foundLocal.role.toLowerCase(),
-            department: foundLocal.department
-          };
-        }
-      }
+
 
       if (!employee) {
         setErrorMessage(`The email "${targetEmail}" is not registered in SDS EMS. Contact your administrator.`);
@@ -248,43 +233,7 @@ export const LoginView = () => {
                 )}
               </Button>
 
-              {/* Quick Select Authorized Accounts */}
-              <div className="pt-2 space-y-2 border-t border-border/60">
-                <span className="text-[11px] font-medium text-muted-foreground block">
-                  Quick Select Registered Account:
-                </span>
-                <div className="space-y-1.5">
-                  {AUTHORIZED_ACCOUNTS.map((acc) => (
-                    <button
-                      key={acc.email}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => {
-                        setEmailInput(acc.email);
-                        handleDirectEmailLogin(null, acc.email);
-                      }}
-                      className="w-full text-left p-2 rounded-lg border border-border/50 hover:border-primary/40 hover:bg-accent/50 transition-all group flex items-center justify-between"
-                    >
-                      <div className="space-y-0.5">
-                        <div className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5">
-                          <span>{acc.name}</span>
-                          <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono uppercase ${
-                            acc.role === 'Admin' 
-                              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20' 
-                              : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                          }`}>
-                            {acc.role}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {acc.email}
-                        </div>
-                      </div>
-                      <UserCheck className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                    </button>
-                  ))}
-                </div>
-              </div>
+
             </form>
           ) : (
             <div className="space-y-4">

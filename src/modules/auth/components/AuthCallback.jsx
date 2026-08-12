@@ -127,11 +127,12 @@ export const AuthCallback = () => {
         console.log('AuthCallback: Resolved user email:', userEmail);
         if (isMounted) setStatusMessage(`Verifying permissions for ${userEmail}...`);
 
-        // 6. Query SDS_Employees matching clean email
-        console.log('AuthCallback: Querying SDS_Employees table...');
+        // Query only the authenticated user's row — avoids full table scan
         const { data: sdsRows, error: sdsError } = await supabase
           .from('SDS_Employees')
-          .select('*');
+          .select('*')
+          .ilike('email', userEmail)
+          .limit(1);
 
         if (sdsError) {
           console.error('AuthCallback: Database error on SDS_Employees:', sdsError);
