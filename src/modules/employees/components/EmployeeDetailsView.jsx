@@ -19,11 +19,13 @@ import {
 } from 'lucide-react';
 
 import { isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
+import { EditEmployeeModal } from './EditEmployeeModal';
 
 export const EmployeeDetailsView = ({ employeeId, onBack }) => {
   const { employees, attendanceRecords, remarks, activeRole, officeSettings, deleteRemark } = useStore();
   const [isRemarkModalOpen, setIsRemarkModalOpen] = useState(false);
   const [editingRemark, setEditingRemark] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const emp = employees.find(e => e.id === employeeId || e.employeeId === employeeId) || employees[0] || {};
 
@@ -56,9 +58,14 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
           <ArrowLeft className="w-4 h-4" /> Back to Directory
         </Button>
         {activeRole === 'ADMIN' && (
-          <Button onClick={handleOpenAddRemark} size="sm">
-            <Plus className="w-4 h-4" /> Write Performance Remark
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setIsEditModalOpen(true)} variant="outline" size="sm">
+              <Pencil className="w-4 h-4 text-amber-500" /> Edit Profile
+            </Button>
+            <Button onClick={handleOpenAddRemark} size="sm">
+              <Plus className="w-4 h-4" /> Write Performance Remark
+            </Button>
+          </div>
         )}
       </div>
 
@@ -233,6 +240,12 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
         employeeId={emp?.employeeId || ''}
         employeeName={emp?.name || ''}
         editingRemark={editingRemark}
+      />
+
+      <EditEmployeeModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        employee={emp}
       />
     </div>
   );

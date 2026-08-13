@@ -138,6 +138,38 @@ export const employeeService = {
     }
   },
 
+  // Update employee record fields in Supabase SDS_Employees database table
+  async updateEmployee(empId, updatedFields) {
+    if (!empId) return null;
+
+    const payload = {};
+    if (updatedFields.employeeId) payload.id = updatedFields.employeeId.trim();
+    if (updatedFields.name) payload.full_name = updatedFields.name.trim();
+    if (updatedFields.full_name) payload.full_name = updatedFields.full_name.trim();
+    if (updatedFields.email) payload.email = updatedFields.email.trim().toLowerCase();
+    if (updatedFields.department) payload.department = updatedFields.department;
+    if (updatedFields.designation) payload.designation = updatedFields.designation;
+    if (updatedFields.phone !== undefined) payload.phone = updatedFields.phone;
+    if (updatedFields.role) payload.role = String(updatedFields.role).toLowerCase();
+
+    try {
+      const { data, error } = await supabase
+        .from('SDS_Employees')
+        .update(payload)
+        .or(`id.eq.${empId},email.eq.${empId}`)
+        .select();
+
+      if (error) {
+        console.error('employeeService: update error on SDS_Employees:', error.message);
+        throw error;
+      }
+      return data;
+    } catch (err) {
+      console.error('employeeService.updateEmployee catch error:', err);
+      throw err;
+    }
+  },
+
   // Subscribe to real-time changes on SDS_Employees table
   subscribeToEmployeeChanges(onChange) {
     try {

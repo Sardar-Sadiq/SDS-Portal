@@ -6,7 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
-import { Search, UserPlus, ChevronRight, MoreVertical, Trash2, User, BarChart2 } from 'lucide-react';
+import { Search, UserPlus, ChevronRight, MoreVertical, Trash2, User, BarChart2, Pencil } from 'lucide-react';
+import { EditEmployeeModal } from './EditEmployeeModal';
 
 export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
   const { employees, attendanceRecords, activeRole, deleteEmployee } = useStore();
@@ -15,6 +16,7 @@ export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
   const [selectedRole, setSelectedRole] = useState('ALL');
   const [activeMenuEmpId, setActiveMenuEmpId] = useState(null);
   const [contextMenu, setContextMenu] = useState(null); // { x, y, emp }
+  const [editingEmployee, setEditingEmployee] = useState(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -213,6 +215,15 @@ export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
                               </button>
                               <button
                                 onClick={() => {
+                                  setEditingEmployee(emp);
+                                  setActiveMenuEmpId(null);
+                                }}
+                                className="w-full px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center gap-2 text-neutral-700 dark:text-neutral-200 font-medium"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-amber-500" /> Edit Profile
+                              </button>
+                              <button
+                                onClick={() => {
                                   onSelectEmployee(emp.id);
                                   setActiveMenuEmpId(null);
                                 }}
@@ -267,6 +278,15 @@ export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
           </button>
           <button
             onClick={() => {
+              setEditingEmployee(contextMenu.emp);
+              setContextMenu(null);
+            }}
+            className="w-full px-3 py-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center gap-2 text-neutral-700 dark:text-neutral-200 font-medium"
+          >
+            <Pencil className="w-3.5 h-3.5 text-amber-500" /> Edit Profile
+          </button>
+          <button
+            onClick={() => {
               onSelectEmployee(contextMenu.emp.id);
               setContextMenu(null);
             }}
@@ -283,6 +303,12 @@ export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
           </button>
         </div>
       )}
+
+      <EditEmployeeModal
+        isOpen={!!editingEmployee}
+        onClose={() => setEditingEmployee(null)}
+        employee={editingEmployee}
+      />
     </div>
   );
 };

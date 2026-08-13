@@ -855,6 +855,67 @@ export const StoreProvider = ({ children }) => {
     }
   };
 
+  const updateEmployee = async (empId, updatedData) => {
+    if (activeRole !== 'ADMIN') return;
+
+    const targetEmp = employees.find(e => e.id === empId || e.employeeId === empId || e.email === empId);
+    if (!targetEmp) return;
+
+    const newEmpId = updatedData.employeeId?.trim() || targetEmp.employeeId;
+    const newName = updatedData.name?.trim() || updatedData.full_name?.trim() || targetEmp.name;
+    const newEmail = updatedData.email?.trim().toLowerCase() || targetEmp.email;
+    const newDept = updatedData.department || targetEmp.department;
+    const newDesig = updatedData.designation || targetEmp.designation;
+    const newPhone = updatedData.phone !== undefined ? updatedData.phone : targetEmp.phone;
+    const newRole = (updatedData.role || targetEmp.role || 'EMPLOYEE').toUpperCase();
+
+    const updatedRecord = {
+      ...targetEmp,
+      id: newEmpId,
+      employeeId: newEmpId,
+      name: newName,
+      full_name: newName,
+      email: newEmail,
+      department: newDept,
+      designation: newDesig,
+      phone: newPhone,
+      role: newRole
+    };
+
+    // 1. Optimistic update in React state
+    setEmployees(prev => prev.map(e => (e.id === empId || e.employeeId === empId || e.email === empId) ? updatedRecord : e));
+
+    if (currentUser?.id === empId || currentUser?.employeeId === empId || currentUser?.email === empId) {
+      setCurrentUser(prev => prev ? { ...prev, ...updatedRecord } : prev);
+    }
+
+    // 2. Persist to Supabase SDS_Employees table via employeeService
+    try {
+      await employeeService.updateEmployee(targetEmp.id || targetEmp.employeeId || empId, {
+        employeeId: newEmpId,
+        name: newName,
+        email: newEmail,
+        department: newDept,
+        designation: newDesig,
+        phone: newPhone,
+        role: newRole
+      });
+
+      showToast({
+        title: "Employee Profile Saved (Ctrl+S)",
+        description: `Successfully updated profile for ${newName} in Supabase SDS_Employees table.`,
+        status: "success"
+      });
+    } catch (err) {
+      console.error('StoreProvider: Failed to update employee in Supabase —', err.message);
+      showToast({
+        title: "Profile Updated Locally",
+        description: "Saved changes in local session. Check database permissions.",
+        status: "info"
+      });
+    }
+  };
+
   const addRemark = (employeeId, content, category) => {
     if (activeRole !== 'ADMIN') return false;
     const targetEmp = employees.find(e => e.employeeId === employeeId || e.id === employeeId || e.email === employeeId);
@@ -1253,6 +1314,7 @@ export const StoreProvider = ({ children }) => {
         reviewLeave,
         addEmployee,
         deleteEmployee,
+        updateEmployee,
         addRemark,
         editRemark,
         deleteRemark,
