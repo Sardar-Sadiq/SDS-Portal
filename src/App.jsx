@@ -26,6 +26,7 @@ import { AddEmployeeModal } from '@/modules/employees/components/AddEmployeeModa
 import { ApplyLeaveModal } from '@/modules/leave/components/ApplyLeaveModal';
 import { NotificationStack } from '@/components/motion/notification-stack';
 import { AnimatedToastStack } from '@/components/motion/animated-toast-stack';
+import spiritLogo from '@/assets/spirit-svg.png';
 
 // Authenticated Main Layout Wrapper
 const PortalLayout = () => {
@@ -147,7 +148,16 @@ const PortalLayout = () => {
   }, [darkMode]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex font-sans">
+    <div className="min-h-screen bg-background text-foreground flex font-sans relative overflow-hidden">
+      {/* Spirit Data Solutions Ambient Watermark Logo Background */}
+      <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden opacity-[0.035] dark:opacity-[0.065] select-none">
+        <img
+          src={spiritLogo}
+          alt="Spirit Data Solutions Background Logo"
+          className="w-[700px] max-w-[85vw] h-auto object-contain filter drop-shadow-2xl"
+        />
+      </div>
+
       {/* Mobile backdrop — tapping it closes the sidebar drawer */}
       {mobileNavOpen && (
         <div

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { useStore } from '@/context/store-context';
 import { Button } from '@/components/ui/button';
 import { Shield, Lock, AlertCircle, Loader2, Mail, ArrowRight } from 'lucide-react';
+import spiritLogo from '@/assets/spirit-svg.png';
 
 export const LoginView = () => {
   const navigate = useNavigate();
@@ -127,14 +128,23 @@ export const LoginView = () => {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-background text-foreground p-4 relative overflow-hidden transition-colors duration-200">
+      {/* Ambient Spirit Data Solutions Background Watermark */}
+      <div className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden opacity-[0.06] dark:opacity-[0.09] select-none">
+        <img
+          src={spiritLogo}
+          alt="Spirit Data Solutions Background Logo"
+          className="w-[650px] max-w-[90vw] h-auto object-contain filter drop-shadow-2xl"
+        />
+      </div>
+
       {/* Background glow accents */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
       <div className="relative w-full max-w-md space-y-6 z-10">
         {/* Header Branding */}
         <div className="text-center space-y-2">
-          <div className="inline-flex w-12 h-12 rounded-xl bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 items-center justify-center font-bold text-lg shadow-md tracking-wider">
-            SDS
+          <div className="inline-flex w-16 h-16 rounded-2xl bg-neutral-900/10 dark:bg-white/10 items-center justify-center p-2.5 shadow-sm border border-neutral-200 dark:border-neutral-800">
+            <img src={spiritLogo} alt="Spirit Data Solutions Logo" className="w-full h-full object-contain drop-shadow" />
           </div>
           <div className="space-y-0.5">
             <h1 className="text-2xl font-bold tracking-tight">SDS EMS</h1>

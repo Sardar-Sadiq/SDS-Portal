@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '@/context/store-context';
+import spiritLogo from '@/assets/spirit-svg.png';
 import {
   LayoutDashboard,
   Clock,
@@ -86,11 +87,11 @@ export const Sidebar = ({
       }`}>
         {/* On mobile: always show expanded brand */}
         <div className={`flex items-center gap-2.5 overflow-hidden ${collapsed ? 'md:hidden' : ''}`}>
-          <div className="w-8 h-8 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-            SDS
+          <div className="w-8 h-8 rounded-lg bg-neutral-900/10 dark:bg-white/10 flex items-center justify-center shrink-0 shadow-sm p-1 border border-neutral-200 dark:border-neutral-800">
+            <img src={spiritLogo} alt="Spirit Logo" className="w-full h-full object-contain" />
           </div>
           <div className="flex flex-col truncate">
-            <span className="font-semibold text-xs text-neutral-900 dark:text-white tracking-tight leading-none">SDS EMS</span>
+            <span className="font-semibold text-xs text-neutral-900 dark:text-white tracking-tight leading-none">Spirit Data Solutions</span>
             <span className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5 font-mono truncate">{activeRole}</span>
           </div>
         </div>

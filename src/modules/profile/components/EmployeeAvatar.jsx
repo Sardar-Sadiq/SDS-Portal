@@ -15,13 +15,15 @@ export function EmployeeAvatar({
   const [imageError, setImageError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Determine avatar image URL (card_image or UI-Avatars fallback)
-  let avatarUrl = '';
-  if (src && !src.includes('dicebear.com')) {
-    avatarUrl = src;
-  } else {
-    avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Employee')}&background=10b981&color=fff&bold=true`;
-  }
+  // Reset image error state whenever src or name changes
+  React.useEffect(() => {
+    setImageError(false);
+  }, [src, name]);
+
+  const uiAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Employee')}&background=10b981&color=fff&bold=true`;
+  
+  // Determine target image URL
+  const avatarUrl = src || uiAvatarUrl;
 
   // Preset size mapping for string props ('sm', 'md', 'lg', 'xl')
   const presetSizes = {

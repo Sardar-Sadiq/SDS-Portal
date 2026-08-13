@@ -46,7 +46,7 @@ export const employeeService = {
           const cardImageFromDetails = detailsMap.get(String(empIdStr).trim());
           const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff&bold=true`;
           
-          const finalCardImage = cardImageFromDetails || (emp.avatar && !emp.avatar.includes('dicebear.com') ? emp.avatar : fallbackAvatar);
+          const finalCardImage = cardImageFromDetails || emp.avatar || emp.card_image || fallbackAvatar;
 
           return {
             id: empIdStr,
@@ -63,7 +63,7 @@ export const employeeService = {
             joiningDate: emp.joining_date || emp.joiningDate || emp.created_at?.split('T')[0] || '',
             manager: emp.manager || 'Sardar Sadiq',
             isActive: emp.is_active !== false,
-            leaveBalance: emp.leave_balance || emp.leaveBalance || { casual: 12, sick: 8, annual: 15 }
+            leaveBalance: emp.leave_balance || emp.leaveBalance || { casual: 12, sick: 12, emergency: 10 }
           };
         })
         .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
