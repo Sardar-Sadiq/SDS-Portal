@@ -4,12 +4,12 @@ export const INITIAL_OFFICE_SETTINGS = {
   officeEndTime: "17:30",
   gracePeriodMinutes: 15,
   geoFence: {
-    address: "SDS Tech Tower, Suite 400, Financial District, CA",
-    lat: 37.7749,
-    lng: -122.4194,
+    address: "Spirit Data Solutions, BFC Plaza, # 1-1338-1-A11, 2nd Floor, 2B Service Road, Rudrampeta Bypass, Anantapur - 515001",
+    lat: 14.6819,
+    lng: 77.6006,
     radiusMeters: 20,
   },
-  departments: ["Engineering", "Data Science", "Product & Design", "Human Resources", "DevOps & Infrastructure", "Sales & Solutions"],
+  departments: ["IT", "Non IT"],
   roles: ["ADMIN", "EMPLOYEE"],
   holidayCalendar: [
     { date: "2026-01-01", name: "New Year's Day", type: "PUBLIC" },
@@ -35,11 +35,11 @@ export const INITIAL_EMPLOYEES = [
     phone: "+1 (555) 234-5678",
     manager: "Executive Board",
     officeLocation: {
-      lat: 37.7749,
-      lng: -122.4194,
+      lat: 14.6819,
+      lng: 77.6006,
       radiusMeters: 20
     },
-    leaveBalance: { casual: 7, sick: 10, annual: 14 }
+    leaveBalance: { casual: 12, sick: 12, emergency: 10 }
   },
   {
     id: "emp-002",
@@ -54,11 +54,11 @@ export const INITIAL_EMPLOYEES = [
     phone: "+1 (555) 345-6789",
     manager: "Sardar Sadiq",
     officeLocation: {
-      lat: 37.7749,
-      lng: -122.4194,
+      lat: 14.6819,
+      lng: 77.6006,
       radiusMeters: 20
     },
-    leaveBalance: { casual: 5, sick: 8, annual: 12 }
+    leaveBalance: { casual: 12, sick: 12, emergency: 10 }
   },
   {
     id: "emp-003",
@@ -73,11 +73,11 @@ export const INITIAL_EMPLOYEES = [
     phone: "+1 (555) 456-7890",
     manager: "Sardar Sadiq",
     officeLocation: {
-      lat: 37.7749,
-      lng: -122.4194,
+      lat: 14.6819,
+      lng: 77.6006,
       radiusMeters: 20
     },
-    leaveBalance: { casual: 8, sick: 11, annual: 15 }
+    leaveBalance: { casual: 12, sick: 12, emergency: 10 }
   },
   {
     id: "emp-004",
@@ -92,11 +92,11 @@ export const INITIAL_EMPLOYEES = [
     phone: "+1 (555) 567-8901",
     manager: "Sardar Sadiq",
     officeLocation: {
-      lat: 37.7749,
-      lng: -122.4194,
+      lat: 14.6819,
+      lng: 77.6006,
       radiusMeters: 20
     },
-    leaveBalance: { casual: 4, sick: 6, annual: 10 }
+    leaveBalance: { casual: 12, sick: 12, emergency: 10 }
   },
   {
     id: "emp-005",
@@ -111,11 +111,11 @@ export const INITIAL_EMPLOYEES = [
     phone: "+1 (555) 678-9012",
     manager: "Sardar Sadiq",
     officeLocation: {
-      lat: 37.7749,
-      lng: -122.4194,
+      lat: 14.6819,
+      lng: 77.6006,
       radiusMeters: 20
     },
-    leaveBalance: { casual: 6, sick: 12, annual: 18 }
+    leaveBalance: { casual: 12, sick: 12, emergency: 10 }
   }
 ];
 
@@ -132,7 +132,7 @@ export const INITIAL_ATTENDANCE = [
     workingHours: 7.2,
     status: "PRESENT",
     locationVerified: true,
-    coordinates: { lat: 37.7750, lng: -122.4193 },
+    coordinates: { lat: 14.6819, lng: 77.6006 },
     distanceFromOfficeMeters: 18,
     isLate: false
   },
@@ -148,7 +148,7 @@ export const INITIAL_ATTENDANCE = [
     workingHours: 6.8,
     status: "LATE",
     locationVerified: true,
-    coordinates: { lat: 37.7748, lng: -122.4195 },
+    coordinates: { lat: 14.6819, lng: 77.6006 },
     distanceFromOfficeMeters: 32,
     isLate: true
   },
@@ -164,7 +164,7 @@ export const INITIAL_ATTENDANCE = [
     workingHours: 7.5,
     status: "PRESENT",
     locationVerified: true,
-    coordinates: { lat: 37.7749, lng: -122.4194 },
+    coordinates: { lat: 14.6819, lng: 77.6006 },
     distanceFromOfficeMeters: 5,
     isLate: false
   },
@@ -194,7 +194,7 @@ export const INITIAL_ATTENDANCE = [
     workingHours: 7.1,
     status: "PRESENT",
     locationVerified: true,
-    coordinates: { lat: 37.7751, lng: -122.4192 },
+    coordinates: { lat: 14.6819, lng: 77.6006 },
     distanceFromOfficeMeters: 45,
     isLate: false
   },
@@ -235,16 +235,16 @@ export const INITIAL_LEAVES = [
     employeeName: "Aaliyah Chen",
     avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
     department: "Product & Design",
-    leaveType: "ANNUAL",
+    leaveType: "EMERGENCY",
     startDate: "2026-08-01",
     endDate: "2026-08-04",
     totalDays: 4,
-    reason: "Attending Design Systems Conference and taking scheduled annual leave.",
+    reason: "Urgent personal emergency.",
     status: "APPROVED",
     appliedOn: "2026-07-20",
     reviewedBy: "Sardar Sadiq",
     reviewedOn: "2026-07-21",
-    adminNote: "Approved. Marcus will cover urgent Figma reviews."
+    adminNote: "Approved. Take care."
   },
   {
     id: "leave-302",

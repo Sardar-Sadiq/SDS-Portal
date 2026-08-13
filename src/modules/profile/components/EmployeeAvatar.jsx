@@ -1,30 +1,26 @@
 import React, { useState } from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { ProfileImageModal } from './ProfileImageModal';
 
 export function EmployeeAvatar({
-  style = 'bottts',
-  seed,
   size = 40,
   className = '',
   src,
-  name = 'Employee'
+  name = 'Employee',
+  employee,
+  onClick,
+  enableModal = true
 }) {
   const [imageError, setImageError] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Determine final avatar URL:
-  // 1. If stored seed is present (or explicitly passed), use DiceBear SVG URL with style + seed
-  // 2. Else if src is passed and it is a custom uploaded photo (not old static placeholders), use src
-  // 3. Else fallback to DiceBear with name as seed
+  // Determine avatar image URL (card_image or UI-Avatars fallback)
   let avatarUrl = '';
-
-  if (seed) {
-    avatarUrl = `https://api.dicebear.com/10.x/${style}/svg?seed=${encodeURIComponent(seed)}`;
-  } else if (src && !src.includes('ui-avatars.com') && !src.includes('unavatar.io')) {
+  if (src && !src.includes('dicebear.com')) {
     avatarUrl = src;
   } else {
-    const fallbackSeed = name || 'Employee';
-    avatarUrl = `https://api.dicebear.com/10.x/${style}/svg?seed=${encodeURIComponent(fallbackSeed)}`;
+    avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Employee')}&background=10b981&color=fff&bold=true`;
   }
 
   // Preset size mapping for string props ('sm', 'md', 'lg', 'xl')
@@ -51,30 +47,61 @@ export function EmployeeAvatar({
     ? {}
     : { width: typeof size === 'number' ? `${size}px` : size, height: typeof size === 'number' ? `${size}px` : size };
 
+  const handleClick = (e) => {
+    if (onClick) {
+      onClick(e);
+    } else if (enableModal) {
+      e.stopPropagation();
+      setIsModalOpen(true);
+    }
+  };
+
+  const activeEmployeeObj = employee || {
+    name,
+    full_name: name,
+    card_image: avatarUrl,
+    avatar: avatarUrl
+  };
+
   return (
-    <div
-      style={sizeStyle}
-      className={twMerge(
-        clsx(
-          "relative inline-flex items-center justify-center rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 font-bold ring-2 ring-neutral-200 dark:ring-neutral-800 shrink-0 select-none",
-          isPresetSize ? presetSizes[size] : "",
-          className
-        )
-      )}
-    >
-      {avatarUrl && !imageError ? (
-        <img
-          src={avatarUrl}
-          alt={`${name}'s profile avatar`}
-          onError={() => setImageError(true)}
-          width={typeof size === 'number' ? size : undefined}
-          height={typeof size === 'number' ? size : undefined}
-          className="w-full h-full object-cover rounded-full"
-          loading="lazy"
+    <>
+      <div
+        style={sizeStyle}
+        onClick={handleClick}
+        title={`Click to view ${name}'s account card image`}
+        className={twMerge(
+          clsx(
+            "relative inline-flex items-center justify-center rounded-full overflow-hidden bg-emerald-600 text-white font-bold ring-2 ring-neutral-200 dark:ring-neutral-800 shrink-0 select-none",
+            enableModal || onClick ? "cursor-pointer hover:opacity-90 hover:scale-105 active:scale-95 transition-all duration-150" : "",
+            isPresetSize ? presetSizes[size] : "",
+            className
+          )
+        )}
+      >
+        {avatarUrl && !imageError ? (
+          <img
+            src={avatarUrl}
+            alt={`${name}'s profile avatar`}
+            onError={() => setImageError(true)}
+            width={typeof size === 'number' ? size : undefined}
+            height={typeof size === 'number' ? size : undefined}
+            className="w-full h-full object-cover rounded-full"
+            loading="lazy"
+          />
+        ) : (
+          <span className="font-semibold">{getInitials(name)}</span>
+        )}
+      </div>
+
+      {enableModal && (
+        <ProfileImageModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          employee={activeEmployeeObj}
         />
-      ) : (
-        <span className="font-semibold">{getInitials(name)}</span>
       )}
-    </div>
+    </>
   );
 }
+
+

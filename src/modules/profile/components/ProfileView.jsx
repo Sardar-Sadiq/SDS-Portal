@@ -4,18 +4,16 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmployeeAvatar } from './EmployeeAvatar';
-import { AvatarPicker } from './AvatarPicker';
 import { AddRemarkModal } from '@/modules/remarks/components/AddRemarkModal';
-import { Mail, Phone, MapPin, Award, Plus, Pencil, Trash2, Palette } from 'lucide-react';
+import { Mail, Phone, MapPin, Award, Plus, Pencil, Trash2 } from 'lucide-react';
 import { AnimatedNumber } from '@/components/motion/animated-number';
 
 import { isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
 
 export const ProfileView = () => {
-  const { currentUser, remarks, activeRole, deleteRemark, notifications, dismissNotification, updateUserAvatar } = useStore();
+  const { currentUser, remarks, activeRole, deleteRemark, notifications, dismissNotification } = useStore();
   const [isRemarkModalOpen, setIsRemarkModalOpen] = useState(false);
   const [editingRemark, setEditingRemark] = useState(null);
-  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
 
   // Auto-clear remark notifications once the employee checks their profile
   useEffect(() => {
@@ -55,20 +53,11 @@ export const ProfileView = () => {
           <div className="flex flex-col sm:flex-row items-center gap-5">
             <div className="relative group">
               <EmployeeAvatar
-                style={currentUser.avatarStyle}
-                seed={currentUser.avatarSeed || currentUser.employeeId || currentUser.id}
-                src={currentUser.avatar}
+                src={currentUser.card_image || currentUser.avatar}
                 name={currentUser.name}
+                employee={currentUser}
                 size="xl"
               />
-              <button
-                type="button"
-                onClick={() => setIsAvatarPickerOpen(true)}
-                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 shadow-md hover:scale-105 active:scale-95 transition-transform"
-                title="Change Avatar"
-              >
-                <Palette className="w-3.5 h-3.5" />
-              </button>
             </div>
 
             <div className="space-y-1 text-center sm:text-left">
@@ -86,16 +75,6 @@ export const ProfileView = () => {
               </div>
             </div>
           </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAvatarPickerOpen(true)}
-            className="text-xs font-semibold shrink-0"
-          >
-            <Palette className="w-3.5 h-3.5 mr-1.5" /> Change Avatar
-          </Button>
         </div>
       </Card>
 
@@ -145,12 +124,12 @@ export const ProfileView = () => {
               </div>
               <div className="p-3.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase block">Sick</span>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser?.leaveBalance?.sick ?? 8} /></p>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser?.leaveBalance?.sick ?? 12} /></p>
                 <span className="text-[10px] text-neutral-400">days</span>
               </div>
               <div className="p-3.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
-                <span className="text-[10px] text-neutral-400 font-mono uppercase block">Annual</span>
-                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser?.leaveBalance?.annual ?? 15} /></p>
+                <span className="text-[10px] text-neutral-400 font-mono uppercase block">Emergency</span>
+                <p className="text-2xl font-bold text-neutral-900 dark:text-white mt-1"><AnimatedNumber value={currentUser?.leaveBalance?.emergency ?? currentUser?.leaveBalance?.annual ?? 10} /></p>
                 <span className="text-[10px] text-neutral-400">days</span>
               </div>
             </div>
@@ -230,13 +209,6 @@ export const ProfileView = () => {
         editingRemark={editingRemark}
       />
 
-      <AvatarPicker
-        isOpen={isAvatarPickerOpen}
-        onClose={() => setIsAvatarPickerOpen(false)}
-        currentStyle={currentUser.avatarStyle || 'bottts'}
-        currentSeed={currentUser.avatarSeed || currentUser.employeeId || currentUser.id}
-        onSave={updateUserAvatar}
-      />
     </div>
   );
 };

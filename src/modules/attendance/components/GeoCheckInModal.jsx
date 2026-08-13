@@ -222,9 +222,19 @@ export const GeoCheckInModal = ({ isOpen, onClose }) => {
                 <span className="text-emerald-600 dark:text-emerald-400">
                   Checked In · {userTodayRecord.checkIn}
                 </span>
-              ) : (
-                <span className="text-amber-600 dark:text-amber-400">Not Checked In Yet</span>
-              )}
+              ) : (() => {
+                const now = new Date();
+                const isPastCutoff = (now.getHours() * 60 + now.getMinutes()) >= 630;
+                return isPastCutoff ? (
+                  <span className="text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1">
+                    <AlertTriangle className="w-4 h-4 shrink-0" /> ABSENT · Not Logged Before 10:30 AM
+                  </span>
+                ) : (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Not Checked In Yet · Cutoff: 10:30 AM
+                  </span>
+                );
+              })()}
             </p>
             {userTodayRecord?.checkOut && (
               <p className="text-xs text-neutral-500 mt-0.5">
@@ -234,14 +244,14 @@ export const GeoCheckInModal = ({ isOpen, onClose }) => {
           </div>
           <Badge
             variant={
-              userTodayRecord?.isLate
-                ? 'warning'
-                : userTodayRecord?.checkIn
-                ? 'success'
-                : 'neutral'
+              userTodayRecord?.checkIn
+                ? userTodayRecord.isLate ? 'warning' : 'success'
+                : (new Date().getHours() * 60 + new Date().getMinutes() >= 630)
+                ? 'error'
+                : 'warning'
             }
           >
-            {userTodayRecord?.status || 'PENDING'}
+            {userTodayRecord?.status || ((new Date().getHours() * 60 + new Date().getMinutes() >= 630) ? 'ABSENT' : 'NOT LOGGED')}
           </Badge>
         </div>
 

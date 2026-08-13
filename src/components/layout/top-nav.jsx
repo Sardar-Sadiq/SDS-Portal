@@ -105,8 +105,9 @@ export const TopNav = ({
           <EmployeeAvatar
             style={currentUser?.avatarStyle}
             seed={currentUser?.avatarSeed || currentUser?.employeeId || currentUser?.id}
-            src={currentUser?.avatar}
+            src={currentUser?.card_image || currentUser?.avatar}
             name={currentUser?.name || 'User'}
+            employee={currentUser}
             size="md"
           />
         </button>

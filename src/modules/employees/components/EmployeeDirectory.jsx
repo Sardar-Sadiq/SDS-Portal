@@ -129,8 +129,9 @@ export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
                             <EmployeeAvatar
                               style={emp.avatarStyle}
                               seed={emp.avatarSeed || emp.employeeId || emp.id}
-                              src={emp.avatar}
+                              src={emp.card_image || emp.avatar}
                               name={emp.name}
+                              employee={emp}
                               size="md"
                             />
                             <div>
@@ -169,9 +170,9 @@ export const EmployeeDirectory = ({ onSelectEmployee, onOpenAddModal }) => {
 
                         <td className="py-3.5 px-4">
                           <span className="font-semibold text-neutral-800 dark:text-neutral-200">
-                            {(emp.leaveBalance?.casual || 12) + (emp.leaveBalance?.sick || 8) + (emp.leaveBalance?.annual || 15)} days
+                            {(emp.leaveBalance?.casual ?? 12) + (emp.leaveBalance?.sick ?? 12) + (emp.leaveBalance?.emergency ?? emp.leaveBalance?.annual ?? 10)} days
                           </span>
-                          <span className="text-[10px] text-neutral-400 block">({emp.leaveBalance?.annual || 15} annual)</span>
+                          <span className="text-[10px] text-neutral-400 block">({emp.leaveBalance?.emergency ?? emp.leaveBalance?.annual ?? 10} emergency)</span>
                         </td>
 
                         <td className="py-3.5 px-4 text-right relative">

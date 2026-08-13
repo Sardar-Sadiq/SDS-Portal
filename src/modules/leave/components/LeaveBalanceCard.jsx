@@ -10,8 +10,8 @@ export const LeaveBalanceCard = ({ pendingCount = 0 }) => {
   const { currentUser, leaveBalances } = useStore();
   const [policies, setPolicies] = useState({
     casual: { monthly_accrual: 1.00, annual_cap: 12.00 },
-    sick: { monthly_accrual: 0.67, annual_cap: 8.00 },
-    annual: { monthly_accrual: 1.25, annual_cap: 15.00 },
+    sick: { monthly_accrual: 1.00, annual_cap: 12.00 },
+    emergency: { monthly_accrual: 0.83, annual_cap: 10.00 },
   });
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
@@ -22,7 +22,9 @@ export const LeaveBalanceCard = ({ pendingCount = 0 }) => {
         if (data && data.length > 0) {
           const map = {};
           data.forEach(p => {
-            map[p.leave_type] = p;
+            let type = p.leave_type;
+            if (type === 'annual') type = 'emergency';
+            map[type] = p;
           });
           setPolicies(prev => ({ ...prev, ...map }));
         }
@@ -34,8 +36,8 @@ export const LeaveBalanceCard = ({ pendingCount = 0 }) => {
   }, []);
 
   const casualBalance = leaveBalances?.casual ?? currentUser?.leaveBalance?.casual ?? 12;
-  const sickBalance = leaveBalances?.sick ?? currentUser?.leaveBalance?.sick ?? 8;
-  const annualBalance = leaveBalances?.annual ?? currentUser?.leaveBalance?.annual ?? 15;
+  const sickBalance = leaveBalances?.sick ?? currentUser?.leaveBalance?.sick ?? 12;
+  const emergencyBalance = leaveBalances?.emergency ?? leaveBalances?.annual ?? currentUser?.leaveBalance?.emergency ?? currentUser?.leaveBalance?.annual ?? 10;
 
   return (
     <div className="space-y-2">
@@ -89,20 +91,20 @@ export const LeaveBalanceCard = ({ pendingCount = 0 }) => {
           </div>
         </Card>
 
-        {/* Annual Leave */}
+        {/* Emergency Leave */}
         <Card className="p-4 h-full flex flex-col justify-between relative overflow-hidden">
           <div className="flex justify-between items-start">
             <span className="text-[10px] text-neutral-400 font-mono font-medium uppercase">
-              Annual Paid Leave
+              Emergency Leave
             </span>
             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-200/50 dark:border-emerald-800/50">
-              +{policies.annual.monthly_accrual}/mo
+              +{policies.emergency.monthly_accrual}/mo
             </span>
           </div>
           <div className="mt-2">
             <p className="text-2xl font-bold text-neutral-900 dark:text-white">
-              <AnimatedNumber value={annualBalance} />{' '}
-              <span className="text-xs font-normal text-neutral-400">/ {policies.annual.annual_cap} days</span>
+              <AnimatedNumber value={emergencyBalance} />{' '}
+              <span className="text-xs font-normal text-neutral-400">/ {policies.emergency.annual_cap} days</span>
             </p>
           </div>
         </Card>

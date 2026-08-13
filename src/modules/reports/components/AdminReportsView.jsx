@@ -82,7 +82,7 @@ export const AdminReportsView = () => {
 
   // Step 1: Export file & show verification dialog
   const handleStartExportFlow = () => {
-    exportAttendanceExcel();
+    exportAttendanceExcel(selectedMonth, selectedYear);
     setHasVerifiedDownload(false);
     setIsConfirmModalOpen(true);
   };
@@ -343,7 +343,7 @@ export const AdminReportsView = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={exportAttendanceExcel}
+                          onClick={() => exportAttendanceExcel(rep.report_month, rep.report_year)}
                           className="text-xs py-1"
                         >
                           Re-Download Report

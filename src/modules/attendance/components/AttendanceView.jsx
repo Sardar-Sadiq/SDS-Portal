@@ -11,7 +11,7 @@ import { AnimatedNumber } from '@/components/motion/animated-number';
 import { EmployeeAttendanceReport } from './EmployeeAttendanceReport';
 
 export const AttendanceView = ({ onOpenCheckIn }) => {
-  const { attendanceRecords = [], currentUser, activeRole, exportAttendanceExcel, leaveRequests = [] } = useStore();
+  const { attendanceRecords = [], employees = [], currentUser, activeRole, exportAttendanceExcel, leaveRequests = [], updateAttendanceStatus } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
@@ -44,9 +44,19 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
       l.endDate >= dateStr
     );
 
-    let status = matchedRec?.status || (matchedLeave ? 'ON_LEAVE' : 'PENDING');
-    if (!matchedRec && !matchedLeave && dObj < now) {
-      status = 'ABSENT';
+    let status = matchedRec?.status || (matchedLeave ? 'ON_LEAVE' : null);
+    const isToday = dObj.toDateString() === now.toDateString();
+    const currentMins = now.getHours() * 60 + now.getMinutes();
+    const isPast1030Cutoff = isToday ? currentMins >= 630 : dObj < new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (!matchedRec && !matchedLeave) {
+      if (isPast1030Cutoff) {
+        status = 'ABSENT';
+      } else if (isToday) {
+        status = 'NOT_LOGGED';
+      } else {
+        status = 'PENDING';
+      }
     }
 
     return {
@@ -249,23 +259,30 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
                   </thead>
                   <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/60 font-medium">
                     {filteredRecords.length > 0 ? (
-                      filteredRecords.map(record => (
-                        <tr key={record.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
-                          <td className="py-3 px-4">
-                            <div className="flex items-center gap-3">
-                              <EmployeeAvatar
-                                style={record.avatarStyle}
-                                seed={record.avatarSeed || record.employeeId}
-                                src={record.avatar}
-                                name={record.employeeName}
-                                size="md"
-                              />
-                              <div>
-                                <p className="font-semibold text-neutral-900 dark:text-white">{record.employeeName}</p>
-                                <p className="text-[10px] text-neutral-400 font-mono">{record.employeeId} • {record.department}</p>
+                      filteredRecords.map(record => {
+                        const emp = employees.find(e => 
+                          e.employeeId === record.employeeId || 
+                          e.id === record.employeeId || 
+                          (e.name || '').toLowerCase() === (record.employeeName || '').toLowerCase()
+                        );
+                        const avatarSrc = emp?.card_image || emp?.avatar || record.avatar;
+
+                        return (
+                          <tr key={record.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-3">
+                                <EmployeeAvatar
+                                  src={avatarSrc}
+                                  name={record.employeeName}
+                                  employee={emp}
+                                  size="md"
+                                />
+                                <div>
+                                  <p className="font-semibold text-neutral-900 dark:text-white">{record.employeeName}</p>
+                                  <p className="text-[10px] text-neutral-400 font-mono">{record.employeeId} • {record.department}</p>
+                                </div>
                               </div>
-                            </div>
-                          </td>
+                            </td>
                           <td className="py-3 px-4 font-medium text-neutral-900 dark:text-white">{record.date}</td>
                           <td className="py-3 px-4 font-mono text-neutral-600 dark:text-neutral-300">{record.checkIn || '--'}</td>
                           <td className="py-3 px-4 font-mono text-neutral-600 dark:text-neutral-300">{record.checkOut || '--'}</td>
@@ -280,12 +297,26 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
                             )}
                           </td>
                           <td className="py-3 px-4">
-                            <Badge variant={record.status === 'PRESENT' ? 'success' : record.status === 'LATE' ? 'warning' : 'neutral'}>
-                              {record.status}
-                            </Badge>
+                            {isAdmin ? (
+                              <select
+                                value={record.status}
+                                onChange={(e) => updateAttendanceStatus(record.id || record.employeeId, e.target.value, record.date)}
+                                className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-background focus:outline-none cursor-pointer text-foreground shadow-sm"
+                              >
+                                <option value="PRESENT">PRESENT</option>
+                                <option value="LATE">LATE</option>
+                                <option value="ABSENT">ABSENT</option>
+                                <option value="ON_LEAVE">ON LEAVE</option>
+                              </select>
+                            ) : (
+                              <Badge variant={record.status === 'PRESENT' ? 'success' : record.status === 'LATE' ? 'warning' : 'neutral'}>
+                                {record.status}
+                              </Badge>
+                            )}
                           </td>
                         </tr>
-                      ))
+                      );
+                    })
                     ) : (
                       <tr>
                         <td colSpan={7} className="py-8 text-center text-neutral-400">No attendance records match your filter.</td>

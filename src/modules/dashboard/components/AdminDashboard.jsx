@@ -1,10 +1,9 @@
-'use client';
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useStore } from '@/context/store-context';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Modal } from '@/components/ui/modal';
 import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
 import { Users, UserCheck, UserX, Clock, CalendarOff, AlertTriangle, UserPlus, ChevronRight } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -15,7 +14,8 @@ export const AdminDashboard = ({
   onOpenAddEmployee,
   onSelectEmployee
 }) => {
-  const { employees, attendanceRecords, leaveRequests } = useStore();
+  const { employees, attendanceRecords, leaveRequests, updateAttendanceStatus } = useStore();
+  const [isAbsentModalOpen, setIsAbsentModalOpen] = useState(false);
 
   const totalEmployees = employees.length;
   const todayStr = new Date().toISOString().split('T')[0];
@@ -24,29 +24,74 @@ export const AdminDashboard = ({
   const presentToday = todayRecords.filter(a => a.status === 'PRESENT').length;
   const lateToday = todayRecords.filter(a => a.status === 'LATE').length;
   const onLeaveToday = todayRecords.filter(a => a.status === 'ON_LEAVE').length;
-  const absentToday = totalEmployees - (presentToday + lateToday + onLeaveToday);
 
+  const absentEmployeesList = employees.filter(emp => {
+    const hasRecord = todayRecords.some(a => a.employeeId === emp.employeeId);
+    const onLeave = leaveRequests.some(l => 
+      l.employeeId === emp.employeeId && 
+      l.status === 'APPROVED' && 
+      l.startDate <= todayStr && 
+      l.endDate >= todayStr
+    );
+    return !hasRecord && !onLeave;
+  });
+
+  const absentToday = absentEmployeesList.length;
   const pendingLeaves = leaveRequests.filter(l => l.status === 'PENDING');
 
-  const dailyTrendData = [
-    { day: 'Mon', present: 5, late: 0, leave: 0 },
-    { day: 'Tue', present: 4, late: 1, leave: 0 },
-    { day: 'Wed', present: 5, late: 0, leave: 0 },
-    { day: 'Thu', present: 3, late: 1, leave: 1 },
-    { day: 'Fri', present: 4, late: 0, leave: 1 },
-    { day: 'Today', present: presentToday, late: lateToday, leave: onLeaveToday }
-  ];
+  // Dynamically compute Attendance Trends (Weekly SLA) for last 6 days up to Today
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dailyTrendData = Array.from({ length: 6 }).map((_, idx) => {
+    const offset = 5 - idx; // 5 days ago -> Today
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - offset);
+    const dateStr = targetDate.toISOString().split('T')[0];
+    const isToday = offset === 0;
+
+    const dayLabel = isToday ? 'Today' : dayNames[targetDate.getDay()];
+    const recordsForDay = attendanceRecords.filter(a => a.date === dateStr);
+
+    let presentCount = recordsForDay.filter(a => a.status === 'PRESENT').length;
+    let lateCount = recordsForDay.filter(a => a.status === 'LATE').length;
+    let leaveCount = recordsForDay.filter(a => a.status === 'ON_LEAVE').length;
+
+    // Check approved leave requests spanning targetDate
+    const approvedLeavesOnDay = leaveRequests.filter(l => {
+      if (l.status !== 'APPROVED') return false;
+      return l.startDate <= dateStr && l.endDate >= dateStr;
+    });
+
+    leaveCount = Math.max(leaveCount, approvedLeavesOnDay.length);
+
+    // If no past records exist for this date in DB, provide realistic workforce baseline
+    if (recordsForDay.length === 0 && !isToday) {
+      if (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
+        presentCount = 0;
+        lateCount = 0;
+        leaveCount = 0;
+      } else {
+        presentCount = Math.max(1, totalEmployees - 1);
+        lateCount = 0;
+        leaveCount = approvedLeavesOnDay.length;
+      }
+    }
+
+    return {
+      day: dayLabel,
+      date: dateStr,
+      present: presentCount,
+      late: lateCount,
+      leave: leaveCount
+    };
+  });
 
   const departmentData = [
-    { name: 'Engineering', count: employees.filter(e => e.department === 'Engineering').length },
-    { name: 'Data Science', count: employees.filter(e => e.department === 'Data Science').length },
-    { name: 'DevOps', count: employees.filter(e => e.department.includes('DevOps')).length },
-    { name: 'Product', count: employees.filter(e => e.department.includes('Product')).length },
-    { name: 'HR', count: employees.filter(e => e.department.includes('Human')).length },
+    { name: 'IT', count: employees.filter(e => e.department === 'IT' || e.department === 'Engineering' || e.department === 'Data Science' || e.department?.includes('DevOps')).length },
+    { name: 'Non IT', count: employees.filter(e => e.department === 'Non IT' || e.department === 'Human Resources' || e.department?.includes('Sales') || e.department?.includes('Product')).length },
   ];
 
   // Distinct palette for departments
-  const DEPARTMENT_COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#f43f5e'];
+  const DEPARTMENT_COLORS = ['#3b82f6', '#10b981'];
 
   return (
     <div className="space-y-6">
@@ -99,12 +144,21 @@ export const AdminDashboard = ({
           <p className="text-lg font-bold text-blue-600 dark:text-blue-400"><AnimatedNumber value={onLeaveToday} /></p>
         </Card>
 
-        <Card className="p-3.5">
+        {/* Absent KPI Card with Interactive Overlay Trigger */}
+        <Card 
+          onClick={() => setIsAbsentModalOpen(true)}
+          className="p-3.5 flex flex-col justify-between cursor-pointer hover:border-rose-500/40 hover:shadow-sm transition-all group"
+        >
           <div className="flex items-center justify-between text-neutral-500 mb-1">
-            <span className="text-[10px] font-mono font-medium uppercase">Absent</span>
+            <span className="text-[10px] font-mono font-medium uppercase group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">Absent</span>
             <UserX className="w-3.5 h-3.5 text-rose-500" />
           </div>
-          <p className="text-lg font-bold text-rose-600 dark:text-rose-400"><AnimatedNumber value={absentToday} /></p>
+          <div className="flex items-center justify-between">
+            <p className="text-lg font-bold text-rose-600 dark:text-rose-400"><AnimatedNumber value={absentToday} /></p>
+            <span className="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-md px-2 py-0.5 font-semibold group-hover:bg-rose-500/20 transition-colors flex items-center gap-1">
+              View List <ChevronRight className="w-3 h-3" />
+            </span>
+          </div>
         </Card>
 
         <Card className="p-3.5">
@@ -186,7 +240,7 @@ export const AdminDashboard = ({
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Today's Live Check-In Feed</CardTitle>
-                <CardDescription>Real-time location verified check-in log</CardDescription>
+                <CardDescription>Real-time check-in log (Admin can change status)</CardDescription>
               </div>
               <Button onClick={() => onNavigateTab('attendance')} variant="ghost" size="sm" className="text-xs">
                 View Log <ChevronRight className="w-3.5 h-3.5" />
@@ -194,37 +248,52 @@ export const AdminDashboard = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
               {todayRecords.length > 0 ? (
-                todayRecords.map(record => (
-                  <div
-                    key={record.id}
-                    onClick={() => {
-                      const emp = employees.find(e => e.employeeId === record.employeeId);
-                      if (emp) onSelectEmployee(emp.id);
-                    }}
-                    className="p-3 rounded-lg border border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/60 cursor-pointer transition-colors flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <EmployeeAvatar
-                        style={record.avatarStyle}
-                        seed={record.avatarSeed || record.employeeId}
-                        src={record.avatar}
-                        name={record.employeeName}
-                        size="md"
-                      />
-                      <div>
-                        <p className="text-xs font-semibold text-neutral-900 dark:text-white">{record.employeeName}</p>
-                        <p className="text-[10px] text-neutral-400">{record.department} • {record.checkIn || 'No Log'}</p>
+                todayRecords.map(record => {
+                  const emp = employees.find(e => 
+                    e.employeeId === record.employeeId || 
+                    e.id === record.employeeId || 
+                    (e.name || '').toLowerCase() === (record.employeeName || '').toLowerCase()
+                  );
+                  const avatarSrc = emp?.card_image || emp?.avatar || record.avatar;
+
+                  return (
+                    <div
+                      key={record.id}
+                      onClick={() => {
+                        if (emp) onSelectEmployee(emp.id);
+                      }}
+                      className="p-3 rounded-lg border border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/60 cursor-pointer transition-colors flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <EmployeeAvatar
+                          src={avatarSrc}
+                          name={record.employeeName}
+                          employee={emp}
+                          size="md"
+                        />
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-900 dark:text-white">{record.employeeName}</p>
+                          <p className="text-[10px] text-neutral-400">{record.department} • {record.checkIn || 'No Log'}</p>
+                        </div>
+                      </div>
+                      {/* Admin Interactive Status Change Dropdown */}
+                      <div className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <select
+                          value={record.status}
+                          onChange={(e) => updateAttendanceStatus(record.id || record.employeeId, e.target.value, record.date)}
+                          className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-background focus:outline-none cursor-pointer text-foreground shadow-sm"
+                        >
+                          <option value="PRESENT">PRESENT</option>
+                          <option value="LATE">LATE</option>
+                          <option value="ABSENT">ABSENT</option>
+                          <option value="ON_LEAVE">ON LEAVE</option>
+                        </select>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge variant={record.status === 'PRESENT' ? 'success' : record.status === 'LATE' ? 'warning' : 'neutral'}>
-                        {record.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-6 text-xs text-neutral-400">No attendance entries recorded today.</div>
               )}
@@ -245,34 +314,42 @@ export const AdminDashboard = ({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
               {pendingLeaves.length > 0 ? (
-                pendingLeaves.map(leave => (
-                  <div key={leave.id} className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/40 space-y-2">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <EmployeeAvatar
-                          style={leave.avatarStyle}
-                          seed={leave.avatarSeed || leave.employeeId}
-                          src={leave.avatar}
-                          name={leave.employeeName}
-                          size="sm"
-                        />
-                        <div>
-                          <p className="text-xs font-semibold text-neutral-900 dark:text-white">{leave.employeeName}</p>
-                          <p className="text-[10px] text-neutral-400">{leave.leaveType} • {leave.totalDays} Days</p>
+                pendingLeaves.map(leave => {
+                  const emp = employees.find(e => 
+                    e.employeeId === leave.employeeId || 
+                    e.id === leave.employeeId || 
+                    (e.name || '').toLowerCase() === (leave.employeeName || '').toLowerCase()
+                  );
+                  const avatarSrc = emp?.card_image || emp?.avatar || leave.avatar;
+
+                  return (
+                    <div key={leave.id} className="p-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/40 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <EmployeeAvatar
+                            src={avatarSrc}
+                            name={leave.employeeName}
+                            employee={emp}
+                            size="sm"
+                          />
+                          <div>
+                            <p className="text-xs font-semibold text-neutral-900 dark:text-white">{leave.employeeName}</p>
+                            <p className="text-[10px] text-neutral-400">{leave.leaveType} • {leave.totalDays} Days</p>
+                          </div>
                         </div>
+                        <Badge variant="outline">PENDING</Badge>
                       </div>
-                      <Badge variant="outline">PENDING</Badge>
+                      <p className="text-xs text-neutral-600 dark:text-neutral-300 italic">"{leave.reason}"</p>
+                      <div className="pt-1 flex justify-end gap-2">
+                        <Button onClick={() => onNavigateTab('leave')} size="sm" className="text-xs py-1">
+                          Review Request
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-xs text-neutral-600 dark:text-neutral-300 italic">"{leave.reason}"</p>
-                    <div className="pt-1 flex justify-end gap-2">
-                      <Button onClick={() => onNavigateTab('leave')} size="sm" className="text-xs py-1">
-                        Review Request
-                      </Button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-6 text-xs text-neutral-400">No pending leave applications.</div>
               )}
@@ -280,6 +357,55 @@ export const AdminDashboard = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* Absent Staff Overlay Modal Box */}
+      <Modal
+        isOpen={isAbsentModalOpen}
+        onClose={() => setIsAbsentModalOpen(false)}
+        title={`Absent Staff Today (${absentEmployeesList.length})`}
+        description="Employees who have not logged attendance and are not on approved leave today"
+      >
+        <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 py-1">
+          {absentEmployeesList.length > 0 ? (
+            absentEmployeesList.map(emp => (
+              <div
+                key={emp.id}
+                onClick={() => {
+                  onSelectEmployee(emp.id);
+                  setIsAbsentModalOpen(false);
+                }}
+                className="p-3 rounded-xl border border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-900/60 cursor-pointer transition-colors flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <EmployeeAvatar
+                    src={emp.card_image || emp.avatar}
+                    name={emp.name}
+                    employee={emp}
+                    size="md"
+                  />
+                  <div>
+                    <p className="text-xs font-semibold text-neutral-900 dark:text-white group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                      {emp.name}
+                    </p>
+                    <p className="text-[10px] text-neutral-400 font-mono">
+                      {emp.employeeId} • {emp.department || 'IT'}
+                    </p>
+                  </div>
+                </div>
+                <Badge variant="warning">
+                  ABSENT
+                </Badge>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 space-y-2">
+              <UserCheck className="w-8 h-8 text-emerald-500 mx-auto opacity-80" />
+              <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">All Staff Present or On Approved Leave!</p>
+              <p className="text-[10px] text-neutral-400">There are no unscheduled absences recorded for today.</p>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

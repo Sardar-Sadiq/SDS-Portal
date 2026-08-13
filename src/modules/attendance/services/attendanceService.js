@@ -91,6 +91,29 @@ export const attendanceService = {
     return data;
   },
 
+  // Admin update attendance status
+  async updateStatus({ recordId, employeeId, date, status }) {
+    const isLate = status === 'LATE' || status === 'ABSENT';
+    let query = supabase.from('SDS_Attendance').update({
+      status: status.toUpperCase(),
+      is_late: isLate
+    });
+
+    if (recordId && !recordId.startsWith('att-')) {
+      query = query.eq('id', recordId);
+    } else if (employeeId && date) {
+      query = query.eq('employee_id', employeeId).eq('date', date);
+    }
+
+    try {
+      const { data, error } = await query.select();
+      if (error) console.warn('attendanceService.updateStatus warning:', error.message);
+      return data;
+    } catch (err) {
+      return null;
+    }
+  },
+
   // Subscribe to real-time changes on SDS_Attendance table
   subscribeToAttendanceChanges(onChange) {
     const channel = supabase

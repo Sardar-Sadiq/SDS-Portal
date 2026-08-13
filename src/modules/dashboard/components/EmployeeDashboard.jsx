@@ -104,11 +104,11 @@ export const EmployeeDashboard = ({
               </div>
               <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/80">
                 <span className="text-[10px] text-neutral-400 font-mono uppercase">Sick</span>
-                <p className="text-lg font-bold text-neutral-900 dark:text-white"><AnimatedNumber value={currentUser?.leaveBalance?.sick ?? 8} /></p>
+                <p className="text-lg font-bold text-neutral-900 dark:text-white"><AnimatedNumber value={currentUser?.leaveBalance?.sick ?? 12} /></p>
               </div>
               <div className="p-2 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200/60 dark:border-neutral-800/80">
-                <span className="text-[10px] text-neutral-400 font-mono uppercase">Annual</span>
-                <p className="text-lg font-bold text-neutral-900 dark:text-white"><AnimatedNumber value={currentUser?.leaveBalance?.annual ?? 15} /></p>
+                <span className="text-[10px] text-neutral-400 font-mono uppercase">Emergency</span>
+                <p className="text-lg font-bold text-neutral-900 dark:text-white"><AnimatedNumber value={currentUser?.leaveBalance?.emergency ?? currentUser?.leaveBalance?.annual ?? 10} /></p>
               </div>
             </div>
           </CardContent>

@@ -118,10 +118,11 @@ export const leaveService = {
 
     if (error) return null;
 
-    const balObj = { casual: 12, sick: 8, annual: 15 };
+    const balObj = { casual: 12, sick: 12, emergency: 10 };
     if (data && data.length > 0) {
       data.forEach(row => {
-        const type = row.leave_type?.toLowerCase();
+        let type = row.leave_type?.toLowerCase();
+        if (type === 'annual') type = 'emergency';
         if (type && balObj[type] !== undefined) {
           balObj[type] = Number(row.balance);
         }

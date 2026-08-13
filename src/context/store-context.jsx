@@ -31,7 +31,7 @@ function loadUserFromSession() {
   try {
     const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
     if (raw) return JSON.parse(raw);
-  } catch (e) {}
+  } catch (e) { }
   return null;
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ export const StoreProvider = ({ children }) => {
   const [remarks, setRemarks] = useState(INITIAL_REMARKS);
   const [officeSettings, setOfficeSettings] = useState(INITIAL_OFFICE_SETTINGS);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("emp-002");
-  const [leaveBalances, setLeaveBalances] = useState({ casual: 12, sick: 8, annual: 15 });
+  const [leaveBalances, setLeaveBalances] = useState({ casual: 12, sick: 12, emergency: 10 });
 
   const NOTIFICATIONS_STORAGE_KEY = 'sds_notifications_v2';
   const getInitialNotifications = () => {
@@ -62,7 +62,7 @@ export const StoreProvider = ({ children }) => {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) return parsed;
       }
-    } catch (e) {}
+    } catch (e) { }
     return [];
   };
 
@@ -71,7 +71,7 @@ export const StoreProvider = ({ children }) => {
   useEffect(() => {
     try {
       localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications));
-    } catch (e) {}
+    } catch (e) { }
   }, [notifications]);
 
   // Sync session with Supabase Auth on mount & on auth changes
@@ -115,17 +115,25 @@ export const StoreProvider = ({ children }) => {
               employee.auth_id = session.user.id;
             }
 
+            // Compare ID in EmployeesDetails to get card_image
+            let cardImageFromDetails = null;
+            try {
+              const { data: details } = await supabase
+                .from('EmployeesDetails')
+                .select('card_image')
+                .eq('Employee_ID', String(employee.id || '').trim())
+                .limit(1);
+              if (details && details.length > 0 && details[0].card_image) {
+                cardImageFromDetails = details[0].card_image;
+              }
+            } catch (e) { }
+
             const roleUpper = (employee.role || 'EMPLOYEE').toUpperCase();
-            const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
+            const defaultLeaveBalance = { casual: 12, sick: 12, emergency: 10 };
             const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 20 };
 
-            const localCache = profileService.getLocalAvatar(userEmail);
-            const avatarStyle = employee.avatar_style || localCache?.avatarStyle || 'bottts';
-            const avatarSeed = employee.avatar_seed || localCache?.avatarSeed || employee.id || session.user.id;
-            const diceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
-            const userAvatar = (employee.avatar && !employee.avatar.includes('ui-avatars') && !employee.avatar.includes('unavatar.io'))
-              ? employee.avatar
-              : diceBearUrl;
+            const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(employee.full_name || userEmail)}&background=10b981&color=fff&bold=true`;
+            const userAvatar = cardImageFromDetails || (employee.avatar && !employee.avatar.includes('dicebear.com') ? employee.avatar : fallbackAvatar);
 
             const userObj = {
               id: employee.id || session.user.id,
@@ -140,8 +148,7 @@ export const StoreProvider = ({ children }) => {
               phone: employee.phone || employee.phone_number || employee.contact || employee.mobile || '',
               manager: employee.manager || 'Sardar Sadiq',
               joiningDate: employee.joining_date || employee.joiningDate || employee.created_at?.split('T')[0] || '',
-              avatarStyle: avatarStyle,
-              avatarSeed: avatarSeed,
+              card_image: userAvatar,
               avatar: userAvatar,
               officeLocation: employee.officeLocation || defaultOfficeLocation,
               leaveBalance: employee.leaveBalance || defaultLeaveBalance
@@ -348,14 +355,11 @@ export const StoreProvider = ({ children }) => {
       return;
     }
     const roleUpper = (payload.role || 'EMPLOYEE').toUpperCase();
-    const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
+    const defaultLeaveBalance = { casual: 12, sick: 12, emergency: 10 };
     const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 20 };
 
-    const localCache = profileService.getLocalAvatar(payload.email);
-    const avatarStyle = payload.avatarStyle || payload.avatar_style || localCache?.avatarStyle || 'bottts';
-    const avatarSeed = payload.avatarSeed || payload.avatar_seed || localCache?.avatarSeed || payload.id;
-    const diceBearUrl = profileService.getDiceBearUrl(avatarStyle, avatarSeed);
-    const userAvatar = payload.avatar || localCache?.avatarUrl || diceBearUrl;
+    const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.full_name || payload.name || payload.email)}&background=10b981&color=fff&bold=true`;
+    const userAvatar = payload.card_image || payload.avatar || fallbackAvatar;
 
     const userObj = {
       id: payload.id,
@@ -370,8 +374,7 @@ export const StoreProvider = ({ children }) => {
       phone: payload.phone || payload.phone_number || payload.contact || payload.mobile || '',
       manager: payload.manager || 'Sardar Sadiq',
       joiningDate: payload.joiningDate || payload.joining_date || payload.created_at?.split('T')[0] || '',
-      avatarStyle: avatarStyle,
-      avatarSeed: avatarSeed,
+      card_image: userAvatar,
       avatar: userAvatar,
       officeLocation: payload.officeLocation || defaultOfficeLocation,
       leaveBalance: payload.leaveBalance || defaultLeaveBalance
@@ -437,11 +440,20 @@ export const StoreProvider = ({ children }) => {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
     const [startH, startM] = officeSettings.officeStartTime.split(':').map(Number);
-    const startTimeInMins = startH * 60 + startM + officeSettings.gracePeriodMinutes;
+    const startTimeInMins = startH * 60 + startM + officeSettings.gracePeriodMinutes; // e.g. 09:45 AM (585 mins)
+    const absentThresholdInMins = 10 * 60 + 30; // 10:30 AM (630 mins)
     const currentMins = now.getHours() * 60 + now.getMinutes();
 
-    const isLate = currentMins > startTimeInMins;
-    const status = isLate ? 'LATE' : 'PRESENT';
+    let status = 'PRESENT';
+    let isLate = false;
+
+    if (currentMins > absentThresholdInMins) {
+      status = 'ABSENT';
+      isLate = true;
+    } else if (currentMins > startTimeInMins) {
+      status = 'LATE';
+      isLate = true;
+    }
 
     const newRecord = {
       id: `att-${Date.now()}`,
@@ -539,7 +551,7 @@ export const StoreProvider = ({ children }) => {
 
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
-    
+
     const checkInTime = attendanceRecords[existingIndex].checkIn;
     const [inH, inM] = checkInTime.split(':').map(Number);
     const checkInMinutes = inH * 60 + inM;
@@ -600,6 +612,55 @@ export const StoreProvider = ({ children }) => {
       success: true,
       message: `Checked out at ${timeStr}. Total recorded working hours: ${hoursWorked} hrs.`
     };
+  };
+
+  const updateAttendanceStatus = async (identifier, newStatus, targetDate) => {
+    if (activeRole !== 'ADMIN') return;
+    const statusUpper = newStatus.toUpperCase();
+    const isLate = statusUpper === 'LATE' || statusUpper === 'ABSENT';
+    const dateStr = targetDate || new Date().toISOString().split('T')[0];
+
+    // Optimistic local update
+    setAttendanceRecords(prev => {
+      const existing = prev.find(r => r.id === identifier || (r.employeeId === identifier && r.date === dateStr));
+      if (existing) {
+        return prev.map(r => (r.id === existing.id ? { ...r, status: statusUpper, isLate } : r));
+      } else {
+        const emp = employees.find(e => e.id === identifier || e.employeeId === identifier);
+        if (!emp) return prev;
+        const newRecord = {
+          id: `att-override-${Date.now()}`,
+          employeeId: emp.employeeId,
+          employeeName: emp.name,
+          avatar: emp.avatar,
+          department: emp.department,
+          date: dateStr,
+          checkIn: statusUpper === 'PRESENT' || statusUpper === 'LATE' ? '09:30:00' : null,
+          checkOut: null,
+          workingHours: statusUpper === 'PRESENT' ? 8 : 0,
+          status: statusUpper,
+          locationVerified: false,
+          isLate
+        };
+        return [newRecord, ...prev];
+      }
+    });
+
+    try {
+      await attendanceService.updateStatus({
+        recordId: identifier?.startsWith?.('att-') ? identifier : null,
+        employeeId: identifier,
+        date: dateStr,
+        status: statusUpper
+      });
+      showToast({
+        title: "Attendance Status Updated",
+        description: `Set status to ${statusUpper} for employee ${identifier}.`,
+        status: "success"
+      });
+    } catch (err) {
+      console.error('Failed to update attendance status:', err.message);
+    }
   };
 
   const applyLeave = (leaveData) => {
@@ -738,24 +799,43 @@ export const StoreProvider = ({ children }) => {
   const addEmployee = async (employeeData) => {
     if (activeRole !== 'ADMIN') return;
     const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(employeeData.name || employeeData.email)}&background=10b981&color=fff&bold=true`;
-    const newEmp = {
-      ...employeeData,
-      id: `emp-${Date.now()}`,
-      avatar: employeeData.avatar || defaultAvatar
-    };
-    setEmployees(prev => [...prev, newEmp]);
 
-    // Persist directly to Supabase SDS_Employees table
+    // Call Supabase service to persist to database
+    let dbRecord = null;
     try {
-      await employeeService.addEmployee(employeeData);
-      showToast({
-        title: "Employee Added",
-        description: `${employeeData.name} (${employeeData.email}) saved to SDS_Employees in Supabase.`,
-        status: "success"
-      });
+      const resData = await employeeService.addEmployee(employeeData);
+      if (resData && resData.length > 0) {
+        dbRecord = resData[0];
+      }
     } catch (err) {
       console.error('StoreProvider: Failed to add employee to Supabase —', err.message);
     }
+
+    const createdEmp = {
+      id: dbRecord?.id || dbRecord?.employee_id || employeeData.employeeId || `emp-${Date.now()}`,
+      employeeId: dbRecord?.id || dbRecord?.employee_id || employeeData.employeeId || `SDS-${Math.floor(1000 + Math.random() * 9000)}`,
+      auth_id: dbRecord?.auth_id || dbRecord?.id || null,
+      name: dbRecord?.full_name || dbRecord?.name || employeeData.name,
+      email: dbRecord?.email || employeeData.email,
+      role: (dbRecord?.role || employeeData.role || 'EMPLOYEE').toUpperCase(),
+      department: dbRecord?.department || employeeData.department || 'IT',
+      designation: dbRecord?.designation || employeeData.designation || 'Software Engineer',
+      phone: dbRecord?.phone || employeeData.phone || '',
+      joiningDate: dbRecord?.joining_date || employeeData.joiningDate || new Date().toISOString().split('T')[0],
+      manager: dbRecord?.manager || employeeData.manager || 'Sardar Sadiq',
+      isActive: true,
+      leaveBalance: employeeData.leaveBalance || { casual: 12, sick: 12, emergency: 10 },
+      card_image: dbRecord?.card_image || employeeData.card_image || employeeData.avatar || defaultAvatar,
+      avatar: dbRecord?.avatar || dbRecord?.card_image || employeeData.avatar || defaultAvatar
+    };
+
+    setEmployees(prev => [...prev.filter(e => e.email !== createdEmp.email && e.employeeId !== createdEmp.employeeId), createdEmp]);
+
+    showToast({
+      title: "Employee Added & Saved to Database",
+      description: `${createdEmp.name} (${createdEmp.email}) has been permanently saved to Supabase SDS_Employees database table.`,
+      status: "success"
+    });
   };
 
   const deleteEmployee = async (empId) => {
@@ -970,92 +1050,131 @@ export const StoreProvider = ({ children }) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  // Export Attendance & Leave Ledger to Excel CSV format
-  const exportAttendanceExcel = () => {
-    // Generate combined report rows
-    const rows = [];
+  // Export Attendance Matrix (Employees as Rows, Dates as Columns) to Excel CSV format
+  const exportAttendanceExcel = (targetMonth, targetYear) => {
+    const now = new Date();
+    const month = Number(targetMonth) || (now.getMonth() + 1); // 1-12
+    const year = Number(targetYear) || now.getFullYear();
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const monthShort = new Date(year, month - 1, 1).toLocaleString('en-US', { month: 'short' });
 
     // Header row
-    rows.push([
+    const headers = [
       "Employee ID",
       "Employee Name",
       "Department",
-      "Designation",
-      "Date",
-      "Check In",
-      "Check Out",
-      "Hours Worked",
-      "Attendance Status",
-      "Location Verified",
-      "Distance (Meters)",
-      "On Leave Status",
-      "Leave Type",
-      "Leave Dates",
-      "Leave Reason"
-    ]);
+      "Designation"
+    ];
 
-    const targetAttendance = activeRole === 'ADMIN'
-      ? attendanceRecords
-      : attendanceRecords.filter(a => a.employeeId === currentUser?.employeeId);
+    // Dynamic date columns: 01 Aug, 02 Aug, ..., 31 Aug
+    const dateHeaders = [];
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayStr = String(day).padStart(2, '0');
+      dateHeaders.push(`${dayStr} ${monthShort}`);
+    }
 
-    const targetLeaves = activeRole === 'ADMIN'
-      ? leaveRequests
-      : leaveRequests.filter(l => l.employeeId === currentUser?.employeeId);
+    const summaryHeaders = ["Present", "Absent", "Leave", "Half Day"];
 
-    // 1. Compile attendance records
-    targetAttendance.forEach(rec => {
-      const emp = employees.find(e => e.employeeId === rec.employeeId);
-      // Check matching leave for that date
-      const matchingLeave = targetLeaves.find(l => 
-        l.employeeId === rec.employeeId && 
-        l.status === 'APPROVED' &&
-        rec.date >= l.startDate && 
-        rec.date <= l.endDate
-      );
+    const fullHeaderRow = [...headers, ...dateHeaders, ...summaryHeaders].map(h => `"${h}"`);
+    const rows = [fullHeaderRow];
 
-      rows.push([
-        `"${rec.employeeId}"`,
-        `"${rec.employeeName}"`,
-        `"${rec.department}"`,
-        `"${emp?.designation || 'Staff'}"`,
-        `"${rec.date}"`,
-        `"${rec.checkIn || '--'}"`,
-        `"${rec.checkOut || '--'}"`,
-        `"${rec.workingHours || 0}"`,
-        `"${rec.status}"`,
-        `"${rec.locationVerified ? 'YES' : 'NO'}"`,
-        `"${rec.distanceFromOfficeMeters ?? '--'}"`,
-        `"${matchingLeave ? 'YES (APPROVED LEAVE)' : 'NO'}"`,
-        `"${matchingLeave?.leaveType || '--'}"`,
-        `"${matchingLeave ? `${matchingLeave.startDate} to ${matchingLeave.endDate}` : '--'}"`,
-        `"${matchingLeave?.reason ? matchingLeave.reason.replace(/"/g, '""') : '--'}"`
-      ]);
-    });
+    // Scope employees: Admin exports all active employees; Non-admin exports self
+    const targetEmployees = activeRole === 'ADMIN'
+      ? employees
+      : employees.filter(e => e.employeeId === currentUser?.employeeId || e.id === currentUser?.id || e.email === currentUser?.email);
 
-    // 2. Also add employees who took leaves on dates not in attendance table
-    targetLeaves.filter(l => l.status === 'APPROVED').forEach(leave => {
-      const emp = employees.find(e => e.employeeId === leave.employeeId);
-      const existsInAtt = targetAttendance.some(a => a.employeeId === leave.employeeId && a.date >= leave.startDate && a.date <= leave.endDate);
-      
-      if (!existsInAtt) {
-        rows.push([
-          `"${leave.employeeId}"`,
-          `"${leave.employeeName}"`,
-          `"${leave.department}"`,
-          `"${emp?.designation || 'Staff'}"`,
-          `"${leave.startDate}"`,
-          `"--"`,
-          `"--"`,
-          `"0"`,
-          `"ON_LEAVE"`,
-          `"NO"`,
-          `"--"`,
-          `"YES (APPROVED LEAVE)"`,
-          `"${leave.leaveType}"`,
-          `"${leave.startDate} to ${leave.endDate}"`,
-          `"${leave.reason ? leave.reason.replace(/"/g, '""') : '--'}"`
-        ]);
+    const todayStr = now.toISOString().split('T')[0];
+
+    targetEmployees.forEach(emp => {
+      let presentCount = 0;
+      let absentCount = 0;
+      let leaveCount = 0;
+      let halfDayCount = 0;
+
+      const dailyStatusCells = [];
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayStr = String(day).padStart(2, '0');
+        const monthStr = String(month).padStart(2, '0');
+        const dateStr = `${year}-${monthStr}-${dayStr}`;
+        const dateObj = new Date(year, month - 1, day);
+
+        // 1. Find check-in / attendance record
+        const attRec = attendanceRecords.find(a =>
+          (a.employeeId === emp.employeeId || a.employeeId === emp.id || (a.employeeName || '').toLowerCase() === (emp.name || '').toLowerCase()) &&
+          a.date === dateStr
+        );
+
+        // 2. Find approved leave request
+        const leaveRec = leaveRequests.find(l =>
+          (l.employeeId === emp.employeeId || l.employeeId === emp.id) &&
+          l.status === 'APPROVED' &&
+          dateStr >= l.startDate &&
+          dateStr <= l.endDate
+        );
+
+        let cellValue = '--';
+
+        if (attRec) {
+          const st = (attRec.status || '').toUpperCase();
+          if (st === 'PRESENT' || st === 'LATE') {
+            cellValue = '✓';
+            presentCount++;
+          } else if (st === 'ABSENT') {
+            cellValue = 'A';
+            absentCount++;
+          } else if (st === 'HALF_DAY' || st === 'HALF DAY' || st === 'HD') {
+            cellValue = 'HD';
+            halfDayCount++;
+          } else if (st === 'ON_LEAVE' || st === 'LEAVE') {
+            cellValue = 'L';
+            leaveCount++;
+          } else {
+            cellValue = '✓';
+            presentCount++;
+          }
+        } else if (leaveRec) {
+          if (leaveRec.leaveType === 'HALF_DAY' || leaveRec.leaveType === 'HALF DAY') {
+            cellValue = 'HD';
+            halfDayCount++;
+          } else {
+            cellValue = 'L';
+            leaveCount++;
+          }
+        } else {
+          // If past date or today
+          if (dateStr <= todayStr) {
+            const isSunday = dateObj.getDay() === 0;
+            if (isSunday) {
+              cellValue = '--';
+            } else {
+              // Past working day without check-in or leave -> Mark as Absent
+              cellValue = 'A';
+              absentCount++;
+            }
+          } else {
+            // Future date in the month
+            cellValue = '--';
+          }
+        }
+
+        dailyStatusCells.push(`"${cellValue}"`);
       }
+
+      const empRow = [
+        `"${emp.employeeId || emp.id || ''}"`,
+        `"${emp.name || ''}"`,
+        `"${emp.department || 'IT'}"`,
+        `"${emp.designation || 'Staff'}"`,
+        ...dailyStatusCells,
+        `"${presentCount}"`,
+        `"${absentCount}"`,
+        `"${leaveCount}"`,
+        `"${halfDayCount}"`
+      ];
+
+      rows.push(empRow);
     });
 
     // Create UTF-8 BOM CSV content for Microsoft Excel compatibility
@@ -1064,15 +1183,14 @@ export const StoreProvider = ({ children }) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    const todayStr = new Date().toISOString().split('T')[0];
-    link.setAttribute("download", `SDS_EMS_Attendance_Leave_Report_${todayStr}.csv`);
+    link.setAttribute("download", `SDS_Attendance_Report_${monthShort}_${year}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     showToast({
-      title: "Excel Ledger Exported",
-      description: "SDS EMS attendance & leave report downloaded successfully as CSV.",
+      title: "Excel Attendance Matrix Exported",
+      description: `Daily attendance report for ${monthShort} ${year} exported successfully.`,
       status: "success"
     });
   };
@@ -1130,6 +1248,7 @@ export const StoreProvider = ({ children }) => {
         setSelectedEmployeeId,
         checkIn,
         checkOut,
+        updateAttendanceStatus,
         applyLeave,
         reviewLeave,
         addEmployee,

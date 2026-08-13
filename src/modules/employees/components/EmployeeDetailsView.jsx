@@ -46,8 +46,8 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
 
   const geoRadius = emp?.officeLocation?.radiusMeters ?? officeSettings?.geoFence?.radiusMeters ?? 20;
   const casualLeave = emp?.leaveBalance?.casual ?? 12;
-  const sickLeave = emp?.leaveBalance?.sick ?? 8;
-  const annualLeave = emp?.leaveBalance?.annual ?? 15;
+  const sickLeave = emp?.leaveBalance?.sick ?? 12;
+  const emergencyLeave = emp?.leaveBalance?.emergency ?? emp?.leaveBalance?.annual ?? 10;
 
   return (
     <div className="space-y-6">
@@ -68,8 +68,9 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
             <EmployeeAvatar
               style={emp?.avatarStyle}
               seed={emp?.avatarSeed || emp?.employeeId || emp?.id}
-              src={emp?.avatar}
+              src={emp?.card_image || emp?.avatar}
               name={emp?.name || 'Employee'}
+              employee={emp}
               size="xl"
             />
             <div className="space-y-1">
@@ -111,8 +112,8 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
                 <p className="text-xl font-bold text-neutral-900 dark:text-white">{sickLeave}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800">
-                <span className="text-[10px] text-neutral-400 font-mono uppercase">Annual</span>
-                <p className="text-xl font-bold text-neutral-900 dark:text-white">{annualLeave}</p>
+                <span className="text-[10px] text-neutral-400 font-mono uppercase">Emergency</span>
+                <p className="text-xl font-bold text-neutral-900 dark:text-white">{emergencyLeave}</p>
               </div>
             </div>
           </CardContent>

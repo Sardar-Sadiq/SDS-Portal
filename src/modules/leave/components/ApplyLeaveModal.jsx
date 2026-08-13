@@ -14,8 +14,8 @@ export const ApplyLeaveModal = ({ isOpen, onClose }) => {
   const [errorMsg, setErrorMsg] = useState('');
 
   const casualBal = leaveBalances?.casual ?? currentUser?.leaveBalance?.casual ?? 12;
-  const sickBal = leaveBalances?.sick ?? currentUser?.leaveBalance?.sick ?? 8;
-  const annualBal = leaveBalances?.annual ?? currentUser?.leaveBalance?.annual ?? 15;
+  const sickBal = leaveBalances?.sick ?? currentUser?.leaveBalance?.sick ?? 12;
+  const emergencyBal = leaveBalances?.emergency ?? leaveBalances?.annual ?? currentUser?.leaveBalance?.emergency ?? currentUser?.leaveBalance?.annual ?? 10;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -37,7 +37,7 @@ export const ApplyLeaveModal = ({ isOpen, onClose }) => {
     let currentAvailable = 999;
     if (typeKey === 'casual') currentAvailable = casualBal;
     else if (typeKey === 'sick') currentAvailable = sickBal;
-    else if (typeKey === 'annual') currentAvailable = annualBal;
+    else if (typeKey === 'emergency' || typeKey === 'annual') currentAvailable = emergencyBal;
 
     if (leaveType !== 'UNPAID' && diffDays > currentAvailable) {
       const msg = `Insufficient ${leaveType} leave balance. Requested ${diffDays} day(s), but only ${currentAvailable} day(s) available.`;
@@ -74,7 +74,7 @@ export const ApplyLeaveModal = ({ isOpen, onClose }) => {
         <div className="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs flex justify-between">
           <span className="text-neutral-500 font-medium">Your Balance Remaining:</span>
           <span className="font-bold text-neutral-900 dark:text-white">
-            Casual: {casualBal}d | Sick: {sickBal}d | Annual: {annualBal}d
+            Casual: {casualBal}d | Sick: {sickBal}d | Emergency: {emergencyBal}d
           </span>
         </div>
 
@@ -93,7 +93,7 @@ export const ApplyLeaveModal = ({ isOpen, onClose }) => {
           >
             <option value="CASUAL">Casual Leave</option>
             <option value="SICK">Sick Leave</option>
-            <option value="ANNUAL">Annual Paid Leave</option>
+            <option value="EMERGENCY">Emergency Leave</option>
             <option value="UNPAID">Unpaid Leave</option>
           </select>
         </div>

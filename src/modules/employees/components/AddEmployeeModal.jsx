@@ -11,7 +11,7 @@ export const AddEmployeeModal = ({ isOpen, onClose }) => {
     employeeId: '',
     name: '',
     email: '',
-    department: officeSettings?.departments?.[0] || 'Developer',
+    department: 'IT',
     designation: 'Software Engineer',
     role: 'EMPLOYEE',
     phone: '',
@@ -35,7 +35,7 @@ export const AddEmployeeModal = ({ isOpen, onClose }) => {
       phone: formData.phone || '',
       manager: formData.manager,
       officeLocation: officeSettings?.geoFence,
-      leaveBalance: { casual: 12, sick: 8, annual: 15 }
+      leaveBalance: { casual: 12, sick: 12, emergency: 10 }
     });
 
     onClose();
@@ -43,7 +43,7 @@ export const AddEmployeeModal = ({ isOpen, onClose }) => {
       employeeId: '',
       name: '',
       email: '',
-      department: officeSettings?.departments?.[0] || 'Developer',
+      department: 'IT',
       designation: 'Software Engineer',
       role: 'EMPLOYEE',
       phone: '',
@@ -99,9 +99,8 @@ export const AddEmployeeModal = ({ isOpen, onClose }) => {
               onChange={e => setFormData({ ...formData, department: e.target.value })}
               className="w-full px-3 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 text-xs focus:outline-none focus:border-neutral-500"
             >
-              {(officeSettings?.departments || ['Developer', 'Manager', 'Engineering', 'Human Resources']).map(dept => (
-                <option key={dept} value={dept}>{dept}</option>
-              ))}
+              <option value="IT">IT</option>
+              <option value="Non IT">Non IT</option>
             </select>
           </div>
         </div>

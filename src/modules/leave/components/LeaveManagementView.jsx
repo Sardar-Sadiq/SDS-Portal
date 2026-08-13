@@ -13,7 +13,7 @@ import { Modal } from '@/components/ui/modal';
 import { AnimatedNumber } from '@/components/motion/animated-number';
 
 export const LeaveManagementView = () => {
-  const { currentUser, leaveRequests, activeRole, reviewLeave, exportAttendanceExcel } = useStore();
+  const { currentUser, employees = [], leaveRequests, activeRole, reviewLeave, exportAttendanceExcel } = useStore();
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [selectedReviewLeaveId, setSelectedReviewLeaveId] = useState(null);
   const [adminNote, setAdminNote] = useState('');
@@ -105,23 +105,30 @@ export const LeaveManagementView = () => {
               </thead>
               <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800/60 font-medium">
                 {filteredRequests.length > 0 ? (
-                  filteredRequests.map(req => (
-                    <tr key={req.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <EmployeeAvatar
-                            style={req.avatarStyle}
-                            seed={req.avatarSeed || req.employeeId}
-                            src={req.avatar}
-                            name={req.employeeName}
-                            size="md"
-                          />
-                          <div>
-                            <p className="font-semibold text-neutral-900 dark:text-white">{req.employeeName}</p>
-                            <p className="text-[10px] text-neutral-400">{req.department}</p>
+                  filteredRequests.map(req => {
+                    const emp = employees.find(e => 
+                      e.employeeId === req.employeeId || 
+                      e.id === req.employeeId || 
+                      (e.name || '').toLowerCase() === (req.employeeName || '').toLowerCase()
+                    );
+                    const avatarSrc = emp?.card_image || emp?.avatar || req.avatar;
+
+                    return (
+                      <tr key={req.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-900/50">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <EmployeeAvatar
+                              src={avatarSrc}
+                              name={req.employeeName}
+                              employee={emp}
+                              size="md"
+                            />
+                            <div>
+                              <p className="font-semibold text-neutral-900 dark:text-white">{req.employeeName}</p>
+                              <p className="text-[10px] text-neutral-400">{req.department}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
                       <td className="py-3 px-4 font-semibold text-neutral-800 dark:text-neutral-200">
                         {req.leaveType}
                       </td>
@@ -149,7 +156,8 @@ export const LeaveManagementView = () => {
                         )}
                       </td>
                     </tr>
-                  ))
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-neutral-400">No leave requests found.</td>

@@ -60,8 +60,22 @@ export const EmployeeAttendanceReport = ({
                               </span>
                             )}
                           </div>
+                        ) : log.status === 'ABSENT' ? (
+                          <div className="flex flex-col">
+                            <span className="inline-flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-bold">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" /> ABSENT
+                            </span>
+                            <span className="text-[10px] text-neutral-400 font-mono">Not Logged by 10:30 AM</span>
+                          </div>
+                        ) : log.status === 'ON_LEAVE' ? (
+                          <span className="text-blue-600 dark:text-blue-400 font-medium">On Approved Leave</span>
                         ) : (
-                          <span className="text-neutral-400">--:--</span>
+                          <div className="flex flex-col">
+                            <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                              <Clock className="w-3.5 h-3.5 shrink-0" /> Not Logged Yet
+                            </span>
+                            <span className="text-[10px] text-neutral-400 font-mono">Cutoff: 10:30 AM</span>
+                          </div>
                         )}
                       </td>
                       <td className="py-3 px-4 font-mono text-neutral-700 dark:text-neutral-300">
@@ -83,12 +97,14 @@ export const EmployeeAttendanceReport = ({
                               ? 'success'
                               : log.status === 'LATE'
                               ? 'warning'
+                              : log.status === 'ABSENT'
+                              ? 'error'
                               : log.status === 'ON_LEAVE'
                               ? 'secondary'
-                              : 'neutral'
+                              : 'warning'
                           }
                         >
-                          {log.status}
+                          {log.status === 'ABSENT' ? 'ABSENT (NOT LOGGED)' : log.status === 'NOT_LOGGED' ? 'NOT LOGGED YET' : log.status}
                         </Badge>
                       </td>
                     </tr>
