@@ -44,7 +44,7 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
     deleteRemark(remarkId);
   };
 
-  const geoRadius = emp?.officeLocation?.radiusMeters ?? officeSettings?.geoFence?.radiusMeters ?? 500;
+  const geoRadius = emp?.officeLocation?.radiusMeters ?? officeSettings?.geoFence?.radiusMeters ?? 20;
   const casualLeave = emp?.leaveBalance?.casual ?? 12;
   const sickLeave = emp?.leaveBalance?.sick ?? 8;
   const annualLeave = emp?.leaveBalance?.annual ?? 15;

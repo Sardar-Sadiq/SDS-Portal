@@ -190,6 +190,9 @@ export const AuthCallback = () => {
           role: userRole,
           full_name,
           department: employee.department || '',
+          designation: employee.designation || '',
+          phone: employee.phone || employee.phone_number || '',
+          joiningDate: employee.joining_date || employee.joiningDate || '',
           avatarStyle: employee.avatar_style,
           avatarSeed: employee.avatar_seed,
           avatar: employee.avatar

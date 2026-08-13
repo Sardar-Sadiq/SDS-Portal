@@ -7,7 +7,7 @@ export const INITIAL_OFFICE_SETTINGS = {
     address: "SDS Tech Tower, Suite 400, Financial District, CA",
     lat: 37.7749,
     lng: -122.4194,
-    radiusMeters: 250,
+    radiusMeters: 20,
   },
   departments: ["Engineering", "Data Science", "Product & Design", "Human Resources", "DevOps & Infrastructure", "Sales & Solutions"],
   roles: ["ADMIN", "EMPLOYEE"],
@@ -37,7 +37,7 @@ export const INITIAL_EMPLOYEES = [
     officeLocation: {
       lat: 37.7749,
       lng: -122.4194,
-      radiusMeters: 250
+      radiusMeters: 20
     },
     leaveBalance: { casual: 7, sick: 10, annual: 14 }
   },
@@ -56,7 +56,7 @@ export const INITIAL_EMPLOYEES = [
     officeLocation: {
       lat: 37.7749,
       lng: -122.4194,
-      radiusMeters: 250
+      radiusMeters: 20
     },
     leaveBalance: { casual: 5, sick: 8, annual: 12 }
   },
@@ -75,7 +75,7 @@ export const INITIAL_EMPLOYEES = [
     officeLocation: {
       lat: 37.7749,
       lng: -122.4194,
-      radiusMeters: 250
+      radiusMeters: 20
     },
     leaveBalance: { casual: 8, sick: 11, annual: 15 }
   },
@@ -94,7 +94,7 @@ export const INITIAL_EMPLOYEES = [
     officeLocation: {
       lat: 37.7749,
       lng: -122.4194,
-      radiusMeters: 250
+      radiusMeters: 20
     },
     leaveBalance: { casual: 4, sick: 6, annual: 10 }
   },
@@ -113,7 +113,7 @@ export const INITIAL_EMPLOYEES = [
     officeLocation: {
       lat: 37.7749,
       lng: -122.4194,
-      radiusMeters: 250
+      radiusMeters: 20
     },
     leaveBalance: { casual: 6, sick: 12, annual: 18 }
   }

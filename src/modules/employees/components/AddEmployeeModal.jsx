@@ -32,7 +32,7 @@ export const AddEmployeeModal = ({ isOpen, onClose }) => {
       department: formData.department,
       designation: formData.designation || 'Software Engineer',
       joiningDate: new Date().toISOString().split('T')[0],
-      phone: formData.phone || '+91 98765 43210',
+      phone: formData.phone || '',
       manager: formData.manager,
       officeLocation: officeSettings?.geoFence,
       leaveBalance: { casual: 12, sick: 8, annual: 15 }

@@ -125,7 +125,7 @@ export const ProfileView = () => {
             <div className="flex justify-between py-2 border-b border-neutral-100 dark:border-neutral-800/80">
               <span className="text-neutral-500">Assigned Geofence Radius:</span>
               <span className="font-semibold text-neutral-900 dark:text-white flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-neutral-400" /> <AnimatedNumber value={currentUser?.officeLocation?.radiusMeters ?? 500} />m
+                <MapPin className="w-3.5 h-3.5 text-neutral-400" /> <AnimatedNumber value={currentUser?.officeLocation?.radiusMeters ?? 20} />m
               </span>
             </div>
           </CardContent>

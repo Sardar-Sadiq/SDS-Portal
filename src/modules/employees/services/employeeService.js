@@ -49,8 +49,8 @@ export const employeeService = {
             role: (emp.role || emp.system_role || 'EMPLOYEE').toUpperCase(),
             department: emp.department || emp.dept || 'Engineering',
             designation: emp.designation || emp.title || 'Staff',
-            phone: emp.phone || emp.phone_number || '+91 98765 43210',
-            joiningDate: emp.joining_date || emp.joiningDate || '2024-01-15',
+            phone: emp.phone || emp.phone_number || emp.contact || emp.mobile || '',
+            joiningDate: emp.joining_date || emp.joiningDate || emp.created_at?.split('T')[0] || '',
             manager: emp.manager || 'Sardar Sadiq',
             isActive: emp.is_active !== false,
             leaveBalance: emp.leave_balance || emp.leaveBalance || { casual: 12, sick: 8, annual: 15 }
@@ -79,8 +79,8 @@ export const employeeService = {
       is_active: true,
       employee_id: empId,
       designation: empData.designation || 'Software Engineer',
-      phone: empData.phone || '+91 98765 43210',
-      joining_date: empData.joiningDate || new Date().toISOString().split('T')[0],
+      phone: empData.phone || '',
+      joining_date: empData.joiningDate || empData.joining_date || new Date().toISOString().split('T')[0],
       manager: empData.manager || 'Sardar Sadiq',
       avatar: avatarUrl
     };

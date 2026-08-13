@@ -117,7 +117,7 @@ export const StoreProvider = ({ children }) => {
 
             const roleUpper = (employee.role || 'EMPLOYEE').toUpperCase();
             const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
-            const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
+            const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 20 };
 
             const localCache = profileService.getLocalAvatar(userEmail);
             const avatarStyle = employee.avatar_style || localCache?.avatarStyle || 'bottts';
@@ -137,9 +137,9 @@ export const StoreProvider = ({ children }) => {
               role: roleUpper,
               department: employee.department || 'Developer',
               designation: employee.designation || (roleUpper === 'ADMIN' ? 'Manager' : 'Software Engineer'),
-              phone: employee.phone || '+91 98765 43210',
+              phone: employee.phone || employee.phone_number || employee.contact || employee.mobile || '',
               manager: employee.manager || 'Sardar Sadiq',
-              joiningDate: employee.joiningDate || '2024-01-15',
+              joiningDate: employee.joining_date || employee.joiningDate || employee.created_at?.split('T')[0] || '',
               avatarStyle: avatarStyle,
               avatarSeed: avatarSeed,
               avatar: userAvatar,
@@ -349,7 +349,7 @@ export const StoreProvider = ({ children }) => {
     }
     const roleUpper = (payload.role || 'EMPLOYEE').toUpperCase();
     const defaultLeaveBalance = { casual: 12, sick: 8, annual: 15 };
-    const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 500 };
+    const defaultOfficeLocation = { lat: 28.6139, lng: 77.2090, radiusMeters: 20 };
 
     const localCache = profileService.getLocalAvatar(payload.email);
     const avatarStyle = payload.avatarStyle || payload.avatar_style || localCache?.avatarStyle || 'bottts';
@@ -367,9 +367,9 @@ export const StoreProvider = ({ children }) => {
       role: roleUpper,
       department: payload.department || 'Developer',
       designation: payload.designation || (roleUpper === 'ADMIN' ? 'Manager' : 'Software Engineer'),
-      phone: payload.phone || '+91 98765 43210',
+      phone: payload.phone || payload.phone_number || payload.contact || payload.mobile || '',
       manager: payload.manager || 'Sardar Sadiq',
-      joiningDate: payload.joiningDate || '2024-01-15',
+      joiningDate: payload.joiningDate || payload.joining_date || payload.created_at?.split('T')[0] || '',
       avatarStyle: avatarStyle,
       avatarSeed: avatarSeed,
       avatar: userAvatar,

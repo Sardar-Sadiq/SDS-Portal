@@ -84,6 +84,9 @@ export const LoginView = () => {
         role: userRole,
         full_name: employee.full_name || targetEmail,
         department: employee.department || 'Staff',
+        designation: employee.designation || 'Software Engineer',
+        phone: employee.phone || employee.phone_number || '',
+        joiningDate: employee.joining_date || employee.joiningDate || '',
         avatarStyle: employee.avatar_style,
         avatarSeed: employee.avatar_seed,
         avatar: employee.avatar
