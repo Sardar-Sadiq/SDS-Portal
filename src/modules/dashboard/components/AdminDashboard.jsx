@@ -85,13 +85,28 @@ export const AdminDashboard = ({
     };
   });
 
-  const departmentData = [
-    { name: 'IT', count: employees.filter(e => e.department === 'IT' || e.department === 'Engineering' || e.department === 'Data Science' || e.department?.includes('DevOps')).length },
-    { name: 'Non IT', count: employees.filter(e => e.department === 'Non IT' || e.department === 'Human Resources' || e.department?.includes('Sales') || e.department?.includes('Product')).length },
-  ];
+  // Dynamically compute real Staff Distribution by department from employees list
+  const departmentCounts = employees.reduce((acc, emp) => {
+    const rawDept = (emp.department || 'General').trim();
+    acc[rawDept] = (acc[rawDept] || 0) + 1;
+    return acc;
+  }, {});
 
-  // Distinct palette for departments
-  const DEPARTMENT_COLORS = ['#3b82f6', '#10b981'];
+  const departmentData = Object.keys(departmentCounts).length > 0
+    ? Object.entries(departmentCounts).map(([name, count]) => ({ name, count }))
+    : [{ name: 'IT', count: 0 }, { name: 'Non IT', count: 0 }];
+
+  // Distinct color palette for dynamic departments
+  const DEPARTMENT_COLORS = [
+    '#3b82f6', // Blue
+    '#10b981', // Emerald
+    '#f59e0b', // Amber
+    '#8b5cf6', // Purple
+    '#ec4899', // Pink
+    '#06b6d4', // Cyan
+    '#6366f1', // Indigo
+    '#14b8a6'  // Teal
+  ];
 
   return (
     <div className="space-y-6">
@@ -207,7 +222,7 @@ export const AdminDashboard = ({
         <Card className="h-full flex flex-col justify-between">
           <CardHeader>
             <CardTitle>Staff Distribution</CardTitle>
-            <CardDescription>Headcount breakdown by department</CardDescription>
+            <CardDescription>Headcount breakdown by department ({totalEmployees} Total Staff)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 flex-1 flex flex-col justify-between">
             <div className="h-44 w-full flex items-center justify-center my-auto">
@@ -222,7 +237,7 @@ export const AdminDashboard = ({
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="grid grid-cols-2 gap-2 text-[11px] max-h-32 overflow-y-auto pr-1">
               {departmentData.map((dept, i) => (
                 <div key={dept.name} className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: DEPARTMENT_COLORS[i % DEPARTMENT_COLORS.length] }} />
