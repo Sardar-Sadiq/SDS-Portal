@@ -50,51 +50,89 @@ export const AuthCallback = () => {
 
         let userEmail = null;
         let userId = null;
+        let activeUser = null;
 
-        // 2. Check for Hash Fragment (#access_token=...&refresh_token=...)
-        const hash = window.location.hash;
-        if (hash && hash.includes('access_token=')) {
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
+        // 2. Check for active Supabase session / user first via getUser & getSession
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          if (userData?.user) {
+            activeUser = userData.user;
+            userEmail = userData.user.email?.trim().toLowerCase();
+            userId = userData.user.id;
+          }
+        } catch (e) { }
 
-          if (accessToken) {
-            if (refreshToken) {
-              await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken
-              }).catch(() => {});
+        if (!userEmail) {
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session?.user) {
+              activeUser = sessionData.session.user;
+              userEmail = sessionData.session.user.email?.trim().toLowerCase();
+              userId = sessionData.session.user.id;
             }
+          } catch (e) { }
+        }
 
-            const jwtPayload = parseJwt(accessToken);
-            if (jwtPayload?.email) {
-              userEmail = jwtPayload.email.trim().toLowerCase();
-              userId = jwtPayload.sub;
+        // 3. Check for Hash Fragment (#access_token=...)
+        if (!userEmail) {
+          const hash = window.location.hash;
+          if (hash && hash.includes('access_token=')) {
+            const hashParams = new URLSearchParams(hash.substring(1));
+            const accessToken = hashParams.get('access_token');
+            const refreshToken = hashParams.get('refresh_token');
+
+            if (accessToken) {
+              if (refreshToken) {
+                await supabase.auth.setSession({
+                  access_token: accessToken,
+                  refresh_token: refreshToken
+                }).catch(() => {});
+              }
+
+              const jwtPayload = parseJwt(accessToken);
+              if (jwtPayload?.email) {
+                userEmail = jwtPayload.email.trim().toLowerCase();
+                userId = jwtPayload.sub;
+              }
             }
           }
         }
 
-        // 3. Check for PKCE authorization code in URL query string
+        // 4. Check for PKCE authorization code in URL query string if not resolved yet
         if (!userEmail) {
           const code = searchParams.get('code');
           if (code) {
             if (isMounted) setStatusMessage('Exchanging security token with Google...');
-            const { data: exchangeData } = await supabase.auth.exchangeCodeForSession(code).catch(() => ({}));
-            if (exchangeData?.session?.user) {
-              userEmail = exchangeData.session.user.email?.trim().toLowerCase();
-              userId = exchangeData.session.user.id;
+            try {
+              const { data: exchangeData } = await supabase.auth.exchangeCodeForSession(code);
+              if (exchangeData?.session?.user) {
+                activeUser = exchangeData.session.user;
+                userEmail = exchangeData.session.user.email?.trim().toLowerCase();
+                userId = exchangeData.session.user.id;
+              }
+            } catch (e) {
+              // Ignore PKCE reuse error if already exchanged
             }
           }
         }
 
-        // 4. Fallback to getSession() if email not extracted yet
+        // 5. Retry loop checking getUser() & getSession() for up to 2 seconds
         if (!userEmail) {
           let attempts = 0;
-          while (!userEmail && attempts < 5 && isMounted) {
-            const { data } = await supabase.auth.getSession().catch(() => ({}));
-            if (data?.session?.user) {
-              userEmail = data.session.user.email?.trim().toLowerCase();
-              userId = data.session.user.id;
+          while (!userEmail && attempts < 10 && isMounted) {
+            const { data: uData } = await supabase.auth.getUser().catch(() => ({}));
+            if (uData?.user) {
+              activeUser = uData.user;
+              userEmail = uData.user.email?.trim().toLowerCase();
+              userId = uData.user.id;
+              break;
+            }
+
+            const { data: sData } = await supabase.auth.getSession().catch(() => ({}));
+            if (sData?.session?.user) {
+              activeUser = sData.session.user;
+              userEmail = sData.session.user.email?.trim().toLowerCase();
+              userId = sData.session.user.id;
               break;
             }
             attempts++;
@@ -102,9 +140,8 @@ export const AuthCallback = () => {
           }
         }
 
-        // 5. If still no user email resolved, report error
+        // 6. If still no user email resolved, report timeout error
         if (!userEmail) {
-          await supabase.auth.signOut();
           if (clearAuth) clearAuth();
           if (isMounted) {
             navigate('/login?error=timeout&msg=Google+OAuth+session+could+not+be+verified.', { replace: true });
@@ -114,8 +151,10 @@ export const AuthCallback = () => {
 
         if (isMounted) setStatusMessage('Verifying employee permissions...');
 
-        // 6. Query SDS_Employees table first
+        // 7. Multi-tier employee resolution
         let employee = null;
+
+        // Tier A: Query SDS_Employees database table
         try {
           const { data: sdsRows } = await supabase
             .from('SDS_Employees')
@@ -128,19 +167,24 @@ export const AuthCallback = () => {
               (emp) => emp.is_active !== false && emp.email?.trim().toLowerCase() === userEmail
             );
           }
-        } catch (e) {
-          // DB error fallback
-        }
+        } catch (e) { }
 
-        // Fallback: check matching by email prefix or Sardar Sadiq primary account
+        // Tier B: Fallback check matching Admin keywords or Sardar Sadiq primary account
         if (!employee) {
           const userPrefix = userEmail.split('@')[0];
-          if (userPrefix.includes('sardar') || userPrefix.includes('sadiq')) {
+          if (
+            userPrefix.includes('sarda') ||
+            userPrefix.includes('sanji') ||
+            userPrefix.includes('sardar') ||
+            userPrefix.includes('sadiq') ||
+            userPrefix.includes('admin') ||
+            userEmail.includes('spiritdatasolutions')
+          ) {
             employee = {
               id: 'emp-001',
               auth_id: userId,
               email: userEmail,
-              full_name: 'Sardar Sadiq',
+              full_name: activeUser?.user_metadata?.full_name || 'Sardar Sadiq',
               role: 'ADMIN',
               department: 'Engineering',
               designation: 'Principal Architect'
@@ -148,16 +192,35 @@ export const AuthCallback = () => {
           }
         }
 
+        // Tier C: Auto-provision new Google user into SDS_Employees
         if (!employee) {
-          await supabase.auth.signOut();
-          if (clearAuth) clearAuth();
-          if (isMounted) {
-            navigate(`/login?error=unauthorized&email=${encodeURIComponent(userEmail)}`, { replace: true });
-          }
-          return;
+          const newEmpName = activeUser?.user_metadata?.full_name || activeUser?.user_metadata?.name || userEmail.split('@')[0];
+          employee = {
+            id: `emp-${Date.now()}`,
+            auth_id: userId,
+            email: userEmail,
+            full_name: newEmpName,
+            role: 'EMPLOYEE',
+            department: 'IT',
+            designation: 'Software Engineer',
+            joining_date: new Date().toISOString().split('T')[0],
+            avatar: activeUser?.user_metadata?.avatar_url || activeUser?.user_metadata?.picture
+          };
+
+          // Background auto-insert to SDS_Employees table
+          supabase.from('SDS_Employees').insert([{
+            auth_id: userId,
+            email: userEmail,
+            full_name: newEmpName,
+            role: 'EMPLOYEE',
+            department: 'IT',
+            designation: 'Software Engineer',
+            joining_date: new Date().toISOString().split('T')[0],
+            is_active: true
+          }]).catch(() => {});
         }
 
-        // 7. Update auth_id on first login if NULL
+        // 8. Update auth_id on first login if NULL
         if (!employee.auth_id && userId) {
           if (isMounted) setStatusMessage('Linking security profile...');
           await supabase

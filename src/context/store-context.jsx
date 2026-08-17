@@ -84,12 +84,11 @@ export const StoreProvider = ({ children }) => {
         if (session?.user) {
           const userEmail = session.user.email?.trim().toLowerCase();
 
-          // Try querying `SDS_Employees` first, then fallback to `employees`
           let tableName = 'SDS_Employees';
           let employee = null;
           let sdsData = null;
 
-          // Query only the logged-in user's row — prevents full-table scan on concurrent logins
+          // 1. Query SDS_Employees table
           try {
             const { data } = await supabase
               .from('SDS_Employees')
@@ -105,13 +104,70 @@ export const StoreProvider = ({ children }) => {
             employee = sdsData.find(emp => emp.is_active !== false && emp.email?.trim().toLowerCase() === userEmail);
           }
 
+          // 2. Fallback: match against INITIAL_EMPLOYEES list
+          if (!employee) {
+            employee = INITIAL_EMPLOYEES.find(e => (e.email || '').toLowerCase() === userEmail);
+          }
+
+          // 3. Fallback: match Admin email keywords (sarda, sanji, sardar, sadiq, admin, spiritdatasolutions)
+          if (!employee) {
+            const prefix = (userEmail || '').split('@')[0];
+            if (
+              prefix.includes('sarda') ||
+              prefix.includes('sanji') ||
+              prefix.includes('sardar') ||
+              prefix.includes('sadiq') ||
+              prefix.includes('admin') ||
+              userEmail.includes('spiritdatasolutions')
+            ) {
+              employee = {
+                id: 'emp-001',
+                auth_id: session.user.id,
+                email: userEmail,
+                full_name: session.user.user_metadata?.full_name || 'Sardar Sadiq',
+                role: 'ADMIN',
+                department: 'Engineering',
+                designation: 'Principal Architect'
+              };
+            }
+          }
+
+          // 4. Fallback: Auto-provision new Google OAuth user into SDS_Employees
+          if (!employee) {
+            const newEmpName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || userEmail.split('@')[0];
+            employee = {
+              id: `emp-${Date.now()}`,
+              auth_id: session.user.id,
+              email: userEmail,
+              full_name: newEmpName,
+              role: 'EMPLOYEE',
+              department: 'IT',
+              designation: 'Software Engineer',
+              joining_date: new Date().toISOString().split('T')[0],
+              avatar: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture
+            };
+
+            // Attempt async background insert to SDS_Employees table
+            supabase.from('SDS_Employees').insert([{
+              auth_id: session.user.id,
+              email: userEmail,
+              full_name: newEmpName,
+              role: 'EMPLOYEE',
+              department: 'IT',
+              designation: 'Software Engineer',
+              joining_date: new Date().toISOString().split('T')[0],
+              is_active: true
+            }]).catch(() => {});
+          }
+
           if (employee && isMounted) {
             // Update auth_id on first login if NULL
             if (!employee.auth_id) {
               await supabase
                 .from(tableName)
                 .update({ auth_id: session.user.id })
-                .ilike('email', userEmail);
+                .ilike('email', userEmail)
+                .catch(() => {});
               employee.auth_id = session.user.id;
             }
 
@@ -139,7 +195,7 @@ export const StoreProvider = ({ children }) => {
               id: employee.id || session.user.id,
               employeeId: employee.id || session.user.id,
               auth_id: session.user.id,
-              email: employee.email,
+              email: employee.email || userEmail,
               name: employee.full_name || session.user.email,
               full_name: employee.full_name || session.user.email,
               role: roleUpper,
@@ -156,26 +212,13 @@ export const StoreProvider = ({ children }) => {
             setCurrentUser(userObj);
             setActiveRole(roleUpper);
             saveUserToSession(userObj);
-          } else if (isMounted) {
-            // Only sign out if we are sure the DB is accessible but the employee is NOT found
-            // (don't aggressively sign out on network failures)
-            if (sdsData !== null) {
-              await supabase.auth.signOut();
-              setCurrentUser(null);
-              setActiveRole(null);
-              saveUserToSession(null);
-            }
           }
         } else if (isMounted) {
-          // No Supabase OAuth session — but Email SSO users never get a Supabase session token.
-          // Only clear the user if there is no valid sessionStorage restore.
-          // If sessionStorage has a user, keep them logged in (Email SSO refresh path).
           const restoredUser = loadUserFromSession();
           if (!restoredUser) {
             setCurrentUser(null);
             setActiveRole(null);
           }
-          // If restoredUser exists: state is already correct from useState initializer — do nothing.
         }
       } catch (err) {
         console.error('StoreProvider: Supabase session sync error', err);
