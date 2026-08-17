@@ -6,9 +6,10 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EmployeeAvatar } from '@/modules/profile/components/EmployeeAvatar';
-import { Clock, Search, MapPin, Download, Filter, BarChart2, Table, UserCheck, Users } from 'lucide-react';
+import { Clock, Search, MapPin, Download, Filter, BarChart2, Table, UserCheck, Users, Calendar as CalendarIcon, RotateCcw, X } from 'lucide-react';
 import { AnimatedNumber } from '@/components/motion/animated-number';
 import { EmployeeAttendanceReport } from './EmployeeAttendanceReport';
+import { Calendar } from '@/components/ui/calendar';
 
 export const AttendanceView = ({ onOpenCheckIn }) => {
   const { attendanceRecords = [], employees = [], currentUser, activeRole, exportAttendanceExcel, leaveRequests = [], updateAttendanceStatus } = useStore();
@@ -17,6 +18,12 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
   const [departmentFilter, setDepartmentFilter] = useState('ALL');
   const [adminViewMode, setAdminViewMode] = useState('ALL_STAFF'); // 'ALL_STAFF' or 'MY_ATTENDANCE'
   const [employeeSubTab, setEmployeeSubTab] = useState('REPORT'); // 'REPORT' or 'LEDGER'
+
+  // Calendar date picker state: defaults strictly to Today's date (YYYY-MM-DD)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [showAllDates, setShowAllDates] = useState(false);
 
   const isAdmin = activeRole === 'ADMIN';
 
@@ -30,7 +37,7 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
   const mondayDate = new Date(now);
   mondayDate.setDate(now.getDate() + distanceToMon);
 
-  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const myWeeklyLogs = dayNames.map((dName, idx) => {
     const dObj = new Date(mondayDate);
     dObj.setDate(mondayDate.getDate() + idx);
@@ -82,13 +89,14 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
   const departments = Array.from(new Set(roleAttendanceRecords.map(a => a.department).filter(Boolean)));
 
   const filteredRecords = roleAttendanceRecords.filter(record => {
+    const matchesDate = showAllDates || !selectedDate || record.date === selectedDate;
     const matchesSearch = (record.employeeName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (record.employeeId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                           (record.date || '').includes(searchQuery);
     const matchesStatus = statusFilter === 'ALL' || record.status === statusFilter;
     const matchesDept = departmentFilter === 'ALL' || record.department === departmentFilter;
 
-    return matchesSearch && matchesStatus && matchesDept;
+    return matchesDate && matchesSearch && matchesStatus && matchesDept;
   });
 
   return (
@@ -184,17 +192,89 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
         />
       ) : (
         <>
-          <Card className="p-4 space-y-3">
+          <Card className="p-4 space-y-3 relative">
             <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-              <div className="relative w-full md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
-                <input
-                  type="text"
-                  placeholder={isAdmin ? "Filter by name, ID or date..." : "Filter by date..."}
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-transparent focus:border-neutral-300 dark:focus:border-neutral-700 focus:outline-none"
-                />
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
+                  <input
+                    type="text"
+                    placeholder={isAdmin ? "Filter by name, ID..." : "Filter employee..."}
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-transparent focus:border-neutral-300 dark:focus:border-neutral-700 focus:outline-none"
+                  />
+                </div>
+
+                {/* Calendar Date Picker Popover Trigger */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all flex items-center gap-2 shadow-sm ${
+                      !showAllDates && selectedDate
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+                    }`}
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>
+                      {showAllDates
+                        ? 'All Active Month Dates'
+                        : selectedDate === todayStr
+                        ? `Today (${selectedDate})`
+                        : selectedDate}
+                    </span>
+                  </button>
+
+                  {/* Floating Shadcn Calendar Modal / Popover */}
+                  {isCalendarOpen && (
+                    <div className="absolute left-0 top-full mt-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="relative">
+                        <Calendar
+                          selectedDate={selectedDate}
+                          onSelect={(dStr) => {
+                            setSelectedDate(dStr);
+                            setShowAllDates(false);
+                            setIsCalendarOpen(false);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Today Button */}
+                {(!selectedDate || selectedDate !== todayStr || showAllDates) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDate(todayStr);
+                      setShowAllDates(false);
+                      setIsCalendarOpen(false);
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 transition-colors flex items-center gap-1"
+                    title="Jump to Today's Attendance"
+                  >
+                    <RotateCcw className="w-3 h-3 text-emerald-500" /> Today
+                  </button>
+                )}
+
+                {/* View All Month Records Toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAllDates(!showAllDates);
+                    setIsCalendarOpen(false);
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-medium transition-colors ${
+                    showAllDates
+                      ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 font-semibold'
+                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                >
+                  {showAllDates ? 'Filtering: Single Day' : 'View All Month Logs'}
+                </button>
               </div>
 
               <div className="flex items-center gap-2 w-full md:w-auto">
@@ -231,10 +311,17 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
-                  <CardTitle>Attendance Log Table</CardTitle>
-                  <CardDescription>Showing <AnimatedNumber value={filteredRecords.length} /> recorded entries</CardDescription>
+                  <div className="flex items-center gap-2">
+                    <CardTitle>Attendance Log Table</CardTitle>
+                    <Badge variant="outline" className="font-mono text-[11px] bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                      {showAllDates ? 'Full Month View' : `Date: ${selectedDate}`}
+                    </Badge>
+                  </div>
+                  <CardDescription className="text-xs mt-0.5">
+                    Showing <AnimatedNumber value={filteredRecords.length} /> recorded entries for {showAllDates ? 'active month' : selectedDate === todayStr ? "today's date" : selectedDate}
+                  </CardDescription>
                 </div>
                 {isAdmin && (
                   <Button onClick={exportAttendanceExcel} variant="ghost" size="sm" className="text-xs">

@@ -39,23 +39,25 @@ export const AdminDashboard = ({
   const absentToday = absentEmployeesList.length;
   const pendingLeaves = leaveRequests.filter(l => l.status === 'PENDING');
 
-  // Dynamically compute Attendance Trends (Weekly SLA) for last 6 days up to Today
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const dailyTrendData = Array.from({ length: 6 }).map((_, idx) => {
-    const offset = 5 - idx; // 5 days ago -> Today
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() - offset);
-    const dateStr = targetDate.toISOString().split('T')[0];
-    const isToday = offset === 0;
+  // Compute Fixed Monday to Saturday Attendance Trends Graph (Recording data from today onwards)
+  const fixedDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const nowObj = new Date();
+  const currentDayIdx = nowObj.getDay(); // 0 is Sun, 1 is Mon...
+  const distanceToMonday = currentDayIdx === 0 ? -6 : 1 - currentDayIdx;
+  const mondayObj = new Date(nowObj);
+  mondayObj.setDate(nowObj.getDate() + distanceToMonday);
 
-    const dayLabel = isToday ? 'Today' : dayNames[targetDate.getDay()];
+  const dailyTrendData = fixedDays.map((dName, idx) => {
+    const dObj = new Date(mondayObj);
+    dObj.setDate(mondayObj.getDate() + idx);
+    const dateStr = dObj.toISOString().split('T')[0];
+
     const recordsForDay = attendanceRecords.filter(a => a.date === dateStr);
 
-    let presentCount = recordsForDay.filter(a => a.status === 'PRESENT').length;
-    let lateCount = recordsForDay.filter(a => a.status === 'LATE').length;
+    const presentCount = recordsForDay.filter(a => a.status === 'PRESENT').length;
+    const lateCount = recordsForDay.filter(a => a.status === 'LATE').length;
     let leaveCount = recordsForDay.filter(a => a.status === 'ON_LEAVE').length;
 
-    // Check approved leave requests spanning targetDate
     const approvedLeavesOnDay = leaveRequests.filter(l => {
       if (l.status !== 'APPROVED') return false;
       return l.startDate <= dateStr && l.endDate >= dateStr;
@@ -63,21 +65,8 @@ export const AdminDashboard = ({
 
     leaveCount = Math.max(leaveCount, approvedLeavesOnDay.length);
 
-    // If no past records exist for this date in DB, provide realistic workforce baseline
-    if (recordsForDay.length === 0 && !isToday) {
-      if (targetDate.getDay() === 0 || targetDate.getDay() === 6) {
-        presentCount = 0;
-        lateCount = 0;
-        leaveCount = 0;
-      } else {
-        presentCount = Math.max(1, totalEmployees - 1);
-        lateCount = 0;
-        leaveCount = approvedLeavesOnDay.length;
-      }
-    }
-
     return {
-      day: dayLabel,
+      day: dName,
       date: dateStr,
       present: presentCount,
       late: lateCount,

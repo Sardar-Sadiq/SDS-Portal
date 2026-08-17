@@ -163,6 +163,45 @@ describe('Attendance & Geofencing Module', () => {
       vi.restoreAllMocks();
     });
   });
+
+  describe('Shadcn Calendar Component & Attendance Single-Day Filtering Tests', () => {
+    it('renders Calendar component with day headers and selects date when clicked', async () => {
+      const { Calendar } = await import('@/components/ui/calendar');
+      const handleSelect = vi.fn();
+
+      render(<Calendar selectedDate="2026-08-17" onSelect={handleSelect} />);
+
+      expect(screen.getByText('August 2026')).toBeInTheDocument();
+      expect(screen.getByText('Mon')).toBeInTheDocument();
+      expect(screen.getByText('Sat')).toBeInTheDocument();
+
+      const day17 = screen.getByText('17');
+      act(() => {
+        day17.click();
+      });
+
+      expect(handleSelect).toHaveBeenCalledWith('2026-08-17', expect.any(Date));
+    });
+
+    it('renders AttendanceView with default single-day filter for Today in Attendance Ledger', async () => {
+      const { AttendanceView } = await import('@/modules/attendance/components/AttendanceView');
+
+      render(
+        <StoreProvider>
+          <AttendanceView onOpenCheckIn={vi.fn()} />
+        </StoreProvider>
+      );
+
+      const ledgerTab = screen.getByText('Full Attendance Logs');
+      act(() => {
+        ledgerTab.click();
+      });
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      expect(screen.getByText(`Today (${todayStr})`)).toBeInTheDocument();
+    });
+  });
 });
+
 
 
