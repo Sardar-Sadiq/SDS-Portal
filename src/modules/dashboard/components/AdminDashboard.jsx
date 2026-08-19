@@ -286,7 +286,7 @@ export const AdminDashboard = ({
                       <div className="text-right" onClick={(e) => e.stopPropagation()}>
                         <select
                           value={record.status}
-                          onChange={(e) => updateAttendanceStatus(record.id || record.employeeId, e.target.value, record.date)}
+                          onChange={(e) => updateAttendanceStatus(record, e.target.value, record.date)}
                           className="text-[11px] font-semibold px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-background focus:outline-none cursor-pointer text-foreground shadow-sm"
                         >
                           <option value="PRESENT">PRESENT</option>

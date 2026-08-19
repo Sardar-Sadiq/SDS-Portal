@@ -663,21 +663,58 @@ export const StoreProvider = ({ children }) => {
     const isLate = statusUpper === 'LATE' || statusUpper === 'ABSENT';
     const dateStr = targetDate || new Date().toISOString().split('T')[0];
 
-    // Optimistic local update
-    setAttendanceRecords(prev => {
-      const existing = prev.find(r => r.id === identifier || (r.employeeId === identifier && r.date === dateStr));
-      if (existing) {
-        return prev.map(r => (r.id === existing.id ? { ...r, status: statusUpper, isLate } : r));
+    // Intelligently resolve record and employee details from identifier
+    let employeeId = null;
+    let employeeName = '';
+    let department = '';
+    let avatar = '';
+    let recordId = null;
+    let existingRecord = null;
+
+    if (typeof identifier === 'object' && identifier !== null) {
+      existingRecord = identifier;
+      employeeId = identifier.employeeId;
+      employeeName = identifier.employeeName;
+      department = identifier.department;
+      avatar = identifier.avatar;
+      recordId = identifier.id;
+      if (identifier.date) targetDate = identifier.date;
+    } else {
+      existingRecord = attendanceRecords.find(r => r.id === identifier || (r.employeeId === identifier && r.date === dateStr));
+      if (existingRecord) {
+        employeeId = existingRecord.employeeId;
+        employeeName = existingRecord.employeeName;
+        department = existingRecord.department;
+        avatar = existingRecord.avatar;
+        recordId = existingRecord.id;
       } else {
         const emp = employees.find(e => e.id === identifier || e.employeeId === identifier);
-        if (!emp) return prev;
+        if (emp) {
+          employeeId = emp.employeeId || emp.id;
+          employeeName = emp.name || emp.full_name;
+          department = emp.department || 'IT';
+          avatar = emp.card_image || emp.avatar || '';
+        } else {
+          employeeId = identifier;
+        }
+      }
+    }
+
+    const finalDateStr = targetDate || dateStr;
+
+    // Optimistic local update
+    setAttendanceRecords(prev => {
+      const existing = prev.find(r => (recordId && r.id === recordId) || (r.employeeId === employeeId && r.date === finalDateStr));
+      if (existing) {
+        return prev.map(r => ((recordId && r.id === recordId) || (r.employeeId === employeeId && r.date === finalDateStr) ? { ...r, status: statusUpper, isLate } : r));
+      } else {
         const newRecord = {
-          id: `att-override-${Date.now()}`,
-          employeeId: emp.employeeId,
-          employeeName: emp.name,
-          avatar: emp.avatar,
-          department: emp.department,
-          date: dateStr,
+          id: recordId || `att-override-${Date.now()}`,
+          employeeId,
+          employeeName,
+          avatar,
+          department,
+          date: finalDateStr,
           checkIn: statusUpper === 'PRESENT' || statusUpper === 'LATE' ? '09:30:00' : null,
           checkOut: null,
           workingHours: statusUpper === 'PRESENT' ? 8 : 0,
@@ -691,18 +728,29 @@ export const StoreProvider = ({ children }) => {
 
     try {
       await attendanceService.updateStatus({
-        recordId: identifier?.startsWith?.('att-') ? identifier : null,
-        employeeId: identifier,
-        date: dateStr,
-        status: statusUpper
+        recordId: recordId && typeof recordId === 'string' && recordId.startsWith('att-') ? null : recordId,
+        employeeId,
+        employeeName,
+        department,
+        avatar,
+        date: finalDateStr,
+        status: statusUpper,
+        checkIn: existingRecord?.checkIn ?? (statusUpper === 'PRESENT' || statusUpper === 'LATE' ? '09:30:00' : null),
+        checkOut: existingRecord?.checkOut ?? null,
+        workingHours: existingRecord?.workingHours ?? (statusUpper === 'PRESENT' ? 8 : 0)
       });
       showToast({
-        title: "Attendance Status Updated",
-        description: `Set status to ${statusUpper} for employee ${identifier}.`,
+        title: "Attendance Status Saved to Database",
+        description: `Set status to ${statusUpper} for ${employeeName || employeeId}.`,
         status: "success"
       });
     } catch (err) {
       console.error('Failed to update attendance status:', err.message);
+      showToast({
+        title: "Failed to Save Attendance Status",
+        description: err.message || "An error occurred while saving to database.",
+        status: "error"
+      });
     }
   };
 

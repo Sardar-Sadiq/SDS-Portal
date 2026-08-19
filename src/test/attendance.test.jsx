@@ -201,7 +201,46 @@ describe('Attendance & Geofencing Module', () => {
       expect(screen.getByText(`Today (${todayStr})`)).toBeInTheDocument();
     });
   });
+
+  describe('Admin Attendance Status Upsert & Persistence Tests', () => {
+    it('calls supabase.from("SDS_Attendance").upsert with correct employee_id, status, and metadata', async () => {
+      const { attendanceService } = await import('@/modules/attendance/services/attendanceService');
+      const selectSpy = vi.fn().mockResolvedValue({
+        data: [{ id: 1, employee_id: 'SDS-1001', status: 'ABSENT', is_late: true }],
+        error: null
+      });
+      const upsertSpy = vi.fn().mockReturnValue({
+        select: selectSpy
+      });
+
+      vi.spyOn(supabase, 'from').mockReturnValue({
+        upsert: upsertSpy
+      });
+
+      await attendanceService.updateStatus({
+        employeeId: 'SDS-1001',
+        employeeName: 'John Doe',
+        department: 'Engineering',
+        avatar: 'https://avatar.url',
+        date: '2026-08-19',
+        status: 'ABSENT'
+      });
+
+      expect(upsertSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employee_id: 'SDS-1001',
+          employee_name: 'John Doe',
+          department: 'Engineering',
+          date: '2026-08-19',
+          status: 'ABSENT',
+          is_late: true
+        }),
+        { onConflict: 'employee_id,date' }
+      );
+    });
+  });
 });
+
 
 
 

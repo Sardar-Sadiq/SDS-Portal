@@ -92,26 +92,53 @@ export const attendanceService = {
   },
 
   // Admin update attendance status
-  async updateStatus({ recordId, employeeId, date, status }) {
-    const isLate = status === 'LATE' || status === 'ABSENT';
-    let query = supabase.from('SDS_Attendance').update({
-      status: status.toUpperCase(),
-      is_late: isLate
-    });
-
-    if (recordId && !recordId.startsWith('att-')) {
-      query = query.eq('id', recordId);
-    } else if (employeeId && date) {
-      query = query.eq('employee_id', employeeId).eq('date', date);
-    }
-
-    try {
-      const { data, error } = await query.select();
-      if (error) console.warn('attendanceService.updateStatus warning:', error.message);
-      return data;
-    } catch (err) {
+  async updateStatus({ recordId, employeeId, employeeName, department, avatar, date, status, checkIn, checkOut, workingHours }) {
+    if (!employeeId || !date) {
+      console.warn('attendanceService.updateStatus missing employeeId or date');
       return null;
     }
+
+    const statusUpper = status.toUpperCase();
+    const isLate = statusUpper === 'LATE' || statusUpper === 'ABSENT';
+
+    const payload = {
+      employee_id: employeeId,
+      date: date,
+      status: statusUpper,
+      is_late: isLate,
+    };
+
+    if (employeeName) payload.employee_name = employeeName;
+    if (department) payload.department = department;
+    if (avatar) payload.avatar = avatar;
+
+    if (checkIn !== undefined) {
+      payload.check_in = checkIn;
+    }
+    if (checkOut !== undefined) {
+      payload.check_out = checkOut;
+    }
+    if (workingHours !== undefined) {
+      payload.working_hours = workingHours;
+    }
+
+    if (statusUpper === 'ABSENT' || statusUpper === 'ON_LEAVE') {
+      if (checkIn === undefined) payload.check_in = null;
+      if (checkOut === undefined) payload.check_out = null;
+      if (workingHours === undefined) payload.working_hours = 0;
+    }
+
+    const { data, error } = await supabase
+      .from('SDS_Attendance')
+      .upsert(payload, { onConflict: 'employee_id,date' })
+      .select();
+
+    if (error) {
+      console.error('attendanceService.updateStatus error:', error.message);
+      throw error;
+    }
+
+    return data;
   },
 
   // Subscribe to real-time changes on SDS_Attendance table
