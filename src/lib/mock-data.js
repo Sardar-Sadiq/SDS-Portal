@@ -228,56 +228,7 @@ export const INITIAL_ATTENDANCE = [
   }
 ];
 
-export const INITIAL_LEAVES = [
-  {
-    id: "leave-301",
-    employeeId: "SDS-1004",
-    employeeName: "Aaliyah Chen",
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
-    department: "Product & Design",
-    leaveType: "EMERGENCY",
-    startDate: "2026-08-01",
-    endDate: "2026-08-04",
-    totalDays: 4,
-    reason: "Urgent personal emergency.",
-    status: "APPROVED",
-    appliedOn: "2026-07-20",
-    reviewedBy: "Sardar Sadiq",
-    reviewedOn: "2026-07-21",
-    adminNote: "Approved. Take care."
-  },
-  {
-    id: "leave-302",
-    employeeId: "SDS-1002",
-    employeeName: "Elena Rostova",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-    department: "Data Science",
-    leaveType: "CASUAL",
-    startDate: "2026-08-10",
-    endDate: "2026-08-11",
-    totalDays: 2,
-    reason: "Family event out of town.",
-    status: "PENDING",
-    appliedOn: "2026-07-28"
-  },
-  {
-    id: "leave-303",
-    employeeId: "SDS-1003",
-    employeeName: "Marcus Vance",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    department: "DevOps & Infrastructure",
-    leaveType: "SICK",
-    startDate: "2026-07-15",
-    endDate: "2026-07-15",
-    totalDays: 1,
-    reason: "Severe migraine, doctor rest recommendation.",
-    status: "APPROVED",
-    appliedOn: "2026-07-15",
-    reviewedBy: "Sardar Sadiq",
-    reviewedOn: "2026-07-15",
-    adminNote: "Approved. Take rest."
-  }
-];
+export const INITIAL_LEAVES = [];
 
 export const INITIAL_REMARKS = [
   {

@@ -130,11 +130,20 @@ export const LeaveManagementView = () => {
                           </div>
                         </td>
                       <td className="py-3 px-4 font-semibold text-neutral-800 dark:text-neutral-200">
-                        {req.leaveType}
+                        <div className="flex items-center gap-1.5">
+                          <span>{req.leaveType}</span>
+                          {(req.isHalfDay || req.totalDays === 0.5) && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold border border-amber-500/20">
+                              Half Day {req.halfDaySlot === 'SECOND_HALF' ? '(2nd Half)' : '(1st Half)'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-medium text-neutral-900 dark:text-white block">{req.startDate} → {req.endDate}</span>
-                        <span className="text-[10px] text-neutral-400 font-mono">({req.totalDays} days)</span>
+                        <span className="font-medium text-neutral-900 dark:text-white block">
+                          {req.startDate === req.endDate ? req.startDate : `${req.startDate} → ${req.endDate}`}
+                        </span>
+                        <span className="text-[10px] text-neutral-400 font-mono">({req.totalDays} day{req.totalDays !== 1 ? 's' : ''})</span>
                       </td>
                       <td className="py-3 px-4 max-w-xs text-neutral-600 dark:text-neutral-300 truncate">
                         "{req.reason}"
@@ -181,7 +190,11 @@ export const LeaveManagementView = () => {
           <div className="space-y-4">
             <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 space-y-1 text-xs">
               <p><strong>Applicant:</strong> {selectedReviewLeave.employeeName} ({selectedReviewLeave.department})</p>
-              <p><strong>Leave Period:</strong> {selectedReviewLeave.startDate} to {selectedReviewLeave.endDate} ({selectedReviewLeave.totalDays} days)</p>
+              <p>
+                <strong>Leave Type:</strong> {selectedReviewLeave.leaveType}
+                {(selectedReviewLeave.isHalfDay || selectedReviewLeave.totalDays === 0.5) && ' [HALF DAY]'}
+              </p>
+              <p><strong>Leave Period:</strong> {selectedReviewLeave.startDate} to {selectedReviewLeave.endDate} ({selectedReviewLeave.totalDays} day(s))</p>
               <p className="italic text-neutral-600 dark:text-neutral-300">"{selectedReviewLeave.reason}"</p>
             </div>
 

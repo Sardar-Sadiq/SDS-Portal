@@ -51,7 +51,7 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
       l.endDate >= dateStr
     );
 
-    let status = matchedRec?.status || (matchedLeave ? 'ON_LEAVE' : null);
+    let status = matchedRec?.status || (matchedLeave ? (matchedLeave.isHalfDay || matchedLeave.totalDays === 0.5 || matchedLeave.leaveType === 'HALF_DAY' ? 'HALF_DAY' : 'ON_LEAVE') : null);
     const isToday = dObj.toDateString() === now.toDateString();
     const currentMins = now.getHours() * 60 + now.getMinutes();
     const isPast1030Cutoff = isToday ? currentMins >= 630 : dObj < new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -290,7 +290,9 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
                   <option value="ALL">All Statuses</option>
                   <option value="PRESENT">PRESENT</option>
                   <option value="LATE">LATE</option>
+                  <option value="HALF_DAY">HALF DAY</option>
                   <option value="ON_LEAVE">ON LEAVE</option>
+                  <option value="ABSENT">ABSENT</option>
                 </select>
 
                 {isAdmin && (
@@ -392,13 +394,20 @@ export const AttendanceView = ({ onOpenCheckIn }) => {
                               >
                                 <option value="PRESENT">PRESENT</option>
                                 <option value="LATE">LATE</option>
-                                <option value="ABSENT">ABSENT</option>
+                                <option value="HALF_DAY">HALF DAY</option>
                                 <option value="ON_LEAVE">ON LEAVE</option>
+                                <option value="ABSENT">ABSENT</option>
                               </select>
                             ) : (
-                              <Badge variant={record.status === 'PRESENT' ? 'success' : record.status === 'LATE' ? 'warning' : 'neutral'}>
-                                {record.status}
-                              </Badge>
+                              record.status === 'HALF_DAY' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                  HALF DAY
+                                </span>
+                              ) : (
+                                <Badge variant={record.status === 'PRESENT' ? 'success' : record.status === 'LATE' ? 'warning' : record.status === 'ABSENT' ? 'error' : 'neutral'}>
+                                  {record.status}
+                                </Badge>
+                              )
                             )}
                           </td>
                         </tr>

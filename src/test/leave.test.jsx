@@ -39,4 +39,27 @@ describe('Leave Management Module Unit Tests', () => {
       fireEvent.click(pendingBtn);
     });
   });
+
+  it('renders half day options in ApplyLeaveModal when Half Day is selected', async () => {
+    const { ApplyLeaveModal } = await import('@/modules/leave/components/ApplyLeaveModal');
+    await act(async () => {
+      render(
+        <StoreProvider>
+          <ApplyLeaveModal isOpen={true} onClose={() => {}} />
+        </StoreProvider>
+      );
+    });
+
+    const halfDayBtn = screen.getByRole('button', { name: /Half Day/i });
+    expect(halfDayBtn).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(halfDayBtn);
+    });
+
+    expect(screen.getByText(/Select Half-Day Session/i)).toBeInTheDocument();
+    expect(screen.getByText(/First Half/i)).toBeInTheDocument();
+    expect(screen.getByText(/Second Half/i)).toBeInTheDocument();
+    expect(screen.getByText(/Submit Half Day Request \(0.5d\)/i)).toBeInTheDocument();
+  });
 });

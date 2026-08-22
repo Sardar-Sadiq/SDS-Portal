@@ -46,13 +46,35 @@ export const StoreProvider = ({ children }) => {
   });
   // Start with authLoading=false if we have a cached user (avoids spinner on refresh)
   const [authLoading, setAuthLoading] = useState(() => !loadUserFromSession());
+  const LEAVES_STORAGE_KEY = 'sds_leave_requests_cache_v4';
+  const getInitialLeaveRequests = () => {
+    try {
+      const saved = localStorage.getItem(LEAVES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(item => !['leave-301', 'leave-302', 'leave-303'].includes(item.id));
+        }
+      }
+    } catch (e) {}
+    return [];
+  };
+
   const [employees, setEmployees] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState(INITIAL_ATTENDANCE);
-  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState(getInitialLeaveRequests);
   const [remarks, setRemarks] = useState(INITIAL_REMARKS);
   const [officeSettings, setOfficeSettings] = useState(INITIAL_OFFICE_SETTINGS);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("emp-002");
   const [leaveBalances, setLeaveBalances] = useState({ casual: 12, sick: 12, emergency: 10 });
+
+  useEffect(() => {
+    try {
+      if (leaveRequests && leaveRequests.length > 0) {
+        localStorage.setItem(LEAVES_STORAGE_KEY, JSON.stringify(leaveRequests));
+      }
+    } catch (e) {}
+  }, [leaveRequests]);
 
   const NOTIFICATIONS_STORAGE_KEY = 'sds_notifications_v2';
   const getInitialNotifications = () => {
@@ -344,7 +366,34 @@ export const StoreProvider = ({ children }) => {
         isAdmin
       });
       if (requests) {
-        setLeaveRequests(requests);
+        setLeaveRequests(prev => {
+          const map = new Map();
+          const cleanRequests = requests.filter(r => !['leave-301', 'leave-302', 'leave-303'].includes(r.id));
+
+          // 1. Add database records first (authoritative source of truth)
+          cleanRequests.forEach(item => map.set(String(item.id), item));
+
+          // 2. Add local items only if they are not dummy items AND not duplicates of database records
+          prev.forEach(item => {
+            if (['leave-301', 'leave-302', 'leave-303'].includes(item.id)) return;
+            const isTemp = String(item.id).startsWith('leave-');
+            if (isTemp) {
+              const isDuplicateOfDb = cleanRequests.some(dbItem => 
+                dbItem.employeeId === item.employeeId &&
+                dbItem.startDate === item.startDate &&
+                dbItem.endDate === item.endDate &&
+                dbItem.reason === item.reason
+              );
+              if (!isDuplicateOfDb) {
+                map.set(String(item.id), item);
+              }
+            } else if (!map.has(String(item.id))) {
+              map.set(String(item.id), item);
+            }
+          });
+
+          return Array.from(map.values());
+        });
       }
     } catch (err) {
       console.error('StoreProvider: Failed to fetch leave requests —', err.message);
@@ -657,9 +706,11 @@ export const StoreProvider = ({ children }) => {
     };
   };
 
-  const updateAttendanceStatus = async (identifier, newStatus, targetDate) => {
+  const updateAttendanceStatus = async (identifier, newStatus, targetDate, customWorkingHours) => {
     if (activeRole !== 'ADMIN') return;
-    const statusUpper = newStatus.toUpperCase();
+    let statusUpper = newStatus.toUpperCase();
+    if (statusUpper === 'HALF DAY' || statusUpper === 'HD') statusUpper = 'HALF_DAY';
+    if (statusUpper === 'LEAVE') statusUpper = 'ON_LEAVE';
     const isLate = statusUpper === 'LATE' || statusUpper === 'ABSENT';
     const dateStr = targetDate || new Date().toISOString().split('T')[0];
 
@@ -674,9 +725,9 @@ export const StoreProvider = ({ children }) => {
     if (typeof identifier === 'object' && identifier !== null) {
       existingRecord = identifier;
       employeeId = identifier.employeeId;
-      employeeName = identifier.employeeName;
-      department = identifier.department;
-      avatar = identifier.avatar;
+      employeeName = identifier.employeeName || identifier.employee_name || '';
+      department = identifier.department || '';
+      avatar = identifier.avatar || '';
       recordId = identifier.id;
       if (identifier.date) targetDate = identifier.date;
     } else {
@@ -701,12 +752,14 @@ export const StoreProvider = ({ children }) => {
     }
 
     const finalDateStr = targetDate || dateStr;
+    const defaultHours = statusUpper === 'PRESENT' ? 8 : statusUpper === 'HALF_DAY' ? 4 : 0;
+    const finalHours = customWorkingHours !== undefined ? customWorkingHours : (existingRecord?.workingHours || defaultHours);
 
     // Optimistic local update
     setAttendanceRecords(prev => {
       const existing = prev.find(r => (recordId && r.id === recordId) || (r.employeeId === employeeId && r.date === finalDateStr));
       if (existing) {
-        return prev.map(r => ((recordId && r.id === recordId) || (r.employeeId === employeeId && r.date === finalDateStr) ? { ...r, status: statusUpper, isLate } : r));
+        return prev.map(r => ((recordId && r.id === recordId) || (r.employeeId === employeeId && r.date === finalDateStr) ? { ...r, status: statusUpper, workingHours: finalHours, isLate } : r));
       } else {
         const newRecord = {
           id: recordId || `att-override-${Date.now()}`,
@@ -717,7 +770,7 @@ export const StoreProvider = ({ children }) => {
           date: finalDateStr,
           checkIn: statusUpper === 'PRESENT' || statusUpper === 'LATE' ? '09:30:00' : null,
           checkOut: null,
-          workingHours: statusUpper === 'PRESENT' ? 8 : 0,
+          workingHours: finalHours,
           status: statusUpper,
           locationVerified: false,
           isLate
@@ -737,7 +790,7 @@ export const StoreProvider = ({ children }) => {
         status: statusUpper,
         checkIn: existingRecord?.checkIn ?? (statusUpper === 'PRESENT' || statusUpper === 'LATE' ? '09:30:00' : null),
         checkOut: existingRecord?.checkOut ?? null,
-        workingHours: existingRecord?.workingHours ?? (statusUpper === 'PRESENT' ? 8 : 0)
+        workingHours: finalHours
       });
       showToast({
         title: "Attendance Status Saved to Database",
@@ -757,6 +810,7 @@ export const StoreProvider = ({ children }) => {
   const applyLeave = (leaveData) => {
     if (!currentUser) return;
 
+    const isHalfDay = Boolean(leaveData.isHalfDay || leaveData.totalDays === 0.5 || leaveData.leaveType === 'HALF_DAY');
     const newLeave = {
       id: `leave-${Date.now()}`,
       employeeId: currentUser.employeeId,
@@ -767,6 +821,8 @@ export const StoreProvider = ({ children }) => {
       startDate: leaveData.startDate,
       endDate: leaveData.endDate,
       totalDays: leaveData.totalDays,
+      isHalfDay: isHalfDay,
+      halfDaySlot: leaveData.halfDaySlot || null,
       reason: leaveData.reason,
       status: 'PENDING',
       appliedOn: new Date().toISOString().split('T')[0]
@@ -784,21 +840,25 @@ export const StoreProvider = ({ children }) => {
       startDate: leaveData.startDate,
       endDate: leaveData.endDate,
       totalDays: leaveData.totalDays,
+      isHalfDay: isHalfDay,
+      halfDaySlot: leaveData.halfDaySlot || null,
       reason: leaveData.reason
-    }).catch(err => {
-      console.error('StoreProvider: Failed to persist leave request —', err.message);
-    });
+    })
+      .then(() => fetchLeaveRequests())
+      .catch(err => {
+        console.error('StoreProvider: Failed to persist leave request —', err.message);
+      });
 
     showToast({
       title: "Leave Request Submitted",
-      description: `Submitted ${leaveData.leaveType} leave application for ${leaveData.totalDays} day(s).`,
+      description: `Submitted ${isHalfDay ? 'Half Day' : leaveData.leaveType} leave application for ${leaveData.totalDays} day(s).`,
       status: "success"
     });
     setNotifications(prev => [
       {
         id: `notif-${Date.now()}-admin`,
         title: `${currentUser.name} • Leave Requested`,
-        message: `Submitted ${leaveData.leaveType} leave for ${leaveData.totalDays} day(s).`,
+        message: `Submitted ${isHalfDay ? 'Half Day' : leaveData.leaveType} leave for ${leaveData.totalDays} day(s).`,
         time: "Just now",
         read: false,
         type: "INFO",
@@ -807,7 +867,7 @@ export const StoreProvider = ({ children }) => {
       {
         id: `notif-${Date.now()}-emp`,
         title: "Leave Application Submitted",
-        message: `Your ${leaveData.leaveType} leave application was submitted for admin review.`,
+        message: `Your ${isHalfDay ? 'Half Day' : leaveData.leaveType} leave application was submitted for admin review.`,
         time: "Just now",
         read: false,
         type: "INFO",
@@ -864,27 +924,58 @@ export const StoreProvider = ({ children }) => {
         console.error('StoreProvider: Failed to update leave status —', err.message);
       });
 
-      // If approved, insert usage entry into leave_ledger via leaveService
-      if (status === 'APPROVED' && targetReq.leaveType !== 'UNPAID') {
-        const targetEmp = employees.find(e => e.employeeId === targetReq.employeeId);
-        const targetAuthId = targetEmp?.auth_id || currentUser?.auth_id;
+      // If approved, sync to attendance log table & record usage in ledger
+      if (status === 'APPROVED') {
+        const isHalfDay = Boolean(targetReq.isHalfDay || targetReq.totalDays === 0.5 || targetReq.leaveType === 'HALF_DAY');
+        const leaveAttStatus = isHalfDay ? 'HALF_DAY' : 'ON_LEAVE';
+        const workingHours = isHalfDay ? 4 : 0;
 
-        if (targetAuthId) {
-          leaveService
-            .recordUsage({
-              authId: targetAuthId,
-              leaveType: targetReq.leaveType,
-              totalDays: targetReq.totalDays || 1,
-              startDate: targetReq.startDate,
-              endDate: targetReq.endDate,
-            })
-            .then(() => fetchLeaveBalances())
-            .catch((err) => {
-              console.error('StoreProvider: Failed to record leave usage in ledger —', err.message);
-            });
+        // Auto-update attendance logs for each date in leave period
+        const startDateObj = new Date(targetReq.startDate);
+        const endDateObj = new Date(targetReq.endDate);
+
+        if (!isNaN(startDateObj.getTime()) && !isNaN(endDateObj.getTime())) {
+          let curr = new Date(startDateObj);
+          while (curr <= endDateObj) {
+            const dStr = curr.toISOString().split('T')[0];
+            updateAttendanceStatus(
+              {
+                employeeId: targetReq.employeeId,
+                employeeName: targetReq.employeeName,
+                department: targetReq.department,
+                avatar: targetReq.avatar,
+                date: dStr
+              },
+              leaveAttStatus,
+              dStr,
+              workingHours
+            );
+            curr.setDate(curr.getDate() + 1);
+          }
+        }
+
+        if (targetReq.leaveType !== 'UNPAID') {
+          const targetEmp = employees.find(e => e.employeeId === targetReq.employeeId);
+          const targetAuthId = targetEmp?.auth_id || currentUser?.auth_id;
+
+          if (targetAuthId) {
+            leaveService
+              .recordUsage({
+                authId: targetAuthId,
+                leaveType: targetReq.leaveType,
+                totalDays: targetReq.totalDays || (isHalfDay ? 0.5 : 1),
+                startDate: targetReq.startDate,
+                endDate: targetReq.endDate,
+                isHalfDay
+              })
+              .then(() => fetchLeaveBalances())
+              .catch((err) => {
+                console.error('StoreProvider: Failed to record leave usage in ledger —', err.message);
+              });
+          }
         }
       }
-    }
+    };
   };
 
   const addEmployee = async (employeeData) => {

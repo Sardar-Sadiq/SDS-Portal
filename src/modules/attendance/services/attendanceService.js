@@ -98,7 +98,9 @@ export const attendanceService = {
       return null;
     }
 
-    const statusUpper = status.toUpperCase();
+    let statusUpper = status.toUpperCase();
+    if (statusUpper === 'HALF DAY' || statusUpper === 'HD') statusUpper = 'HALF_DAY';
+    if (statusUpper === 'LEAVE') statusUpper = 'ON_LEAVE';
     const isLate = statusUpper === 'LATE' || statusUpper === 'ABSENT';
 
     const payload = {
@@ -126,6 +128,8 @@ export const attendanceService = {
       if (checkIn === undefined) payload.check_in = null;
       if (checkOut === undefined) payload.check_out = null;
       if (workingHours === undefined) payload.working_hours = 0;
+    } else if (statusUpper === 'HALF_DAY') {
+      if (workingHours === undefined) payload.working_hours = 4;
     }
 
     const { data, error } = await supabase
