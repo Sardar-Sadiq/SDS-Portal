@@ -27,10 +27,10 @@ export const AdminDashboard = ({
 
   const absentEmployeesList = employees.filter(emp => {
     const hasRecord = todayRecords.some(a => a.employeeId === emp.employeeId);
-    const onLeave = leaveRequests.some(l => 
-      l.employeeId === emp.employeeId && 
-      l.status === 'APPROVED' && 
-      l.startDate <= todayStr && 
+    const onLeave = leaveRequests.some(l =>
+      l.employeeId === emp.employeeId &&
+      l.status === 'APPROVED' &&
+      l.startDate <= todayStr &&
       l.endDate >= todayStr
     );
     return !hasRecord && !onLeave;
@@ -149,7 +149,7 @@ export const AdminDashboard = ({
         </Card>
 
         {/* Absent KPI Card with Interactive Overlay Trigger */}
-        <Card 
+        <Card
           onClick={() => setIsAbsentModalOpen(true)}
           className="p-3.5 flex flex-col justify-between cursor-pointer hover:border-rose-500/40 hover:shadow-sm transition-all group"
         >
@@ -255,9 +255,9 @@ export const AdminDashboard = ({
             <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
               {todayRecords.length > 0 ? (
                 todayRecords.map(record => {
-                  const emp = employees.find(e => 
-                    e.employeeId === record.employeeId || 
-                    e.id === record.employeeId || 
+                  const emp = employees.find(e =>
+                    e.employeeId === record.employeeId ||
+                    e.id === record.employeeId ||
                     (e.name || '').toLowerCase() === (record.employeeName || '').toLowerCase()
                   );
                   const avatarSrc = emp?.card_image || emp?.avatar || record.avatar;
@@ -321,9 +321,9 @@ export const AdminDashboard = ({
             <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
               {pendingLeaves.length > 0 ? (
                 pendingLeaves.map(leave => {
-                  const emp = employees.find(e => 
-                    e.employeeId === leave.employeeId || 
-                    e.id === leave.employeeId || 
+                  const emp = employees.find(e =>
+                    e.employeeId === leave.employeeId ||
+                    e.id === leave.employeeId ||
                     (e.name || '').toLowerCase() === (leave.employeeName || '').toLowerCase()
                   );
                   const avatarSrc = emp?.card_image || emp?.avatar || leave.avatar;
