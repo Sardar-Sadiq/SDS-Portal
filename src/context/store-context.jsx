@@ -532,7 +532,7 @@ export const StoreProvider = ({ children }) => {
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
     const [startH, startM] = officeSettings.officeStartTime.split(':').map(Number);
-    const startTimeInMins = startH * 60 + startM + officeSettings.gracePeriodMinutes; // e.g. 09:45 AM (585 mins)
+    const startTimeInMins = startH * 60 + startM + officeSettings.gracePeriodMinutes; // e.g. 09:35 AM (575 mins)
     const absentThresholdInMins = 10 * 60 + 30; // 10:30 AM (630 mins)
     const currentMins = now.getHours() * 60 + now.getMinutes();
 

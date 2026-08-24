@@ -2,7 +2,7 @@ export const INITIAL_OFFICE_SETTINGS = {
   companyName: "Spirit Data Solutions",
   officeStartTime: "09:30",
   officeEndTime: "17:30",
-  gracePeriodMinutes: 15,
+  gracePeriodMinutes: 5,
   geoFence: {
     address: "Spirit Data Solutions, BFC Plaza, # 1-1338-1-A11, 2nd Floor, 2B Service Road, Rudrampeta Bypass, Anantapur - 515001",
     lat: 14.6819,
@@ -257,7 +257,7 @@ export const INITIAL_REMARKS = [
     authorId: "SDS-1001",
     authorName: "Sardar Sadiq",
     authorRole: "ADMIN",
-    content: "Please ensure morning standup check-ins adhere strictly to the 9:15 AM SLA threshold.",
+    content: "Please ensure morning standup check-ins adhere strictly to the 9:35 AM SLA threshold.",
     category: "IMPROVEMENT",
     createdAt: "2026-07-10T09:45:00Z"
   }

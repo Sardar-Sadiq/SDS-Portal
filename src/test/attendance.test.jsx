@@ -239,6 +239,13 @@ describe('Attendance & Geofencing Module', () => {
       );
     });
   });
+
+  describe('Grace Period Configuration Tests', () => {
+    it('initializes officeSettings with a 5-minute grace period by default', async () => {
+      const { INITIAL_OFFICE_SETTINGS } = await import('@/lib/mock-data');
+      expect(INITIAL_OFFICE_SETTINGS.gracePeriodMinutes).toBe(5);
+    });
+  });
 });
 
 
