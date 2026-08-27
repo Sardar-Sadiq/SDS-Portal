@@ -6,7 +6,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 
 export const ApplyLeaveModal = ({ isOpen, onClose }) => {
-  const { applyLeave, currentUser, leaveBalances, showToast } = useStore();
+  const { applyLeave, currentUser, leaveBalances, calculateEmployeeLeaveBalances, showToast } = useStore();
   const [leaveType, setLeaveType] = useState('CASUAL');
   const [durationMode, setDurationMode] = useState('FULL'); // 'FULL' or 'HALF'
   const [halfDaySlot, setHalfDaySlot] = useState('FIRST_HALF'); // 'FIRST_HALF' or 'SECOND_HALF'
@@ -15,9 +15,10 @@ export const ApplyLeaveModal = ({ isOpen, onClose }) => {
   const [reason, setReason] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const casualBal = leaveBalances?.casual ?? currentUser?.leaveBalance?.casual ?? 12;
-  const sickBal = leaveBalances?.sick ?? currentUser?.leaveBalance?.sick ?? 12;
-  const emergencyBal = leaveBalances?.emergency ?? leaveBalances?.annual ?? currentUser?.leaveBalance?.emergency ?? currentUser?.leaveBalance?.annual ?? 10;
+  const currentBal = calculateEmployeeLeaveBalances ? calculateEmployeeLeaveBalances(currentUser) : leaveBalances;
+  const casualBal = currentBal?.casual ?? leaveBalances?.casual ?? currentUser?.leaveBalance?.casual ?? 12;
+  const sickBal = currentBal?.sick ?? leaveBalances?.sick ?? currentUser?.leaveBalance?.sick ?? 12;
+  const emergencyBal = currentBal?.emergency ?? leaveBalances?.emergency ?? leaveBalances?.annual ?? currentUser?.leaveBalance?.emergency ?? currentUser?.leaveBalance?.annual ?? 10;
 
   const isHalfDay = durationMode === 'HALF';
   const effectiveEndDate = isHalfDay ? startDate : endDate;

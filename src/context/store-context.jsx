@@ -413,6 +413,106 @@ export const StoreProvider = ({ children }) => {
     };
   }, [currentUser?.employeeId, currentUser?.role]);
 
+  // ── Dynamic Remaining Leave Calculation per Employee ────────────────────
+  const calculateEmployeeLeaveBalances = (identifier) => {
+    const defaultQuota = { casual: 12, sick: 12, emergency: 10 };
+    const targetIdentifier = identifier || currentUser?.employeeId || currentUser?.id || currentUser?.email;
+
+    if (!targetIdentifier) {
+      return { ...defaultQuota, total: 34, casualUsed: 0, sickUsed: 0, emergencyUsed: 0 };
+    }
+
+    let emp = null;
+    let targetId = '';
+    let targetEmail = '';
+    let targetName = '';
+
+    if (typeof targetIdentifier === 'object' && targetIdentifier !== null) {
+      emp = targetIdentifier;
+      targetId = String(targetIdentifier.employeeId || targetIdentifier.id || '').toLowerCase().trim();
+      targetEmail = String(targetIdentifier.email || '').toLowerCase().trim();
+      targetName = String(targetIdentifier.name || targetIdentifier.full_name || '').toLowerCase().trim();
+    } else {
+      const searchStr = String(targetIdentifier).toLowerCase().trim();
+      emp = employees.find(e =>
+        String(e.employeeId || '').toLowerCase().trim() === searchStr ||
+        String(e.id || '').toLowerCase().trim() === searchStr ||
+        String(e.email || '').toLowerCase().trim() === searchStr ||
+        String(e.name || e.full_name || '').toLowerCase().trim() === searchStr
+      );
+      if (emp) {
+        targetId = String(emp.employeeId || emp.id || '').toLowerCase().trim();
+        targetEmail = String(emp.email || '').toLowerCase().trim();
+        targetName = String(emp.name || emp.full_name || '').toLowerCase().trim();
+      } else {
+        targetId = searchStr;
+      }
+    }
+
+    const initialQuota = {
+      casual: Number(emp?.leaveBalance?.casual ?? 12),
+      sick: Number(emp?.leaveBalance?.sick ?? 12),
+      emergency: Number(emp?.leaveBalance?.emergency ?? emp?.leaveBalance?.annual ?? 10)
+    };
+
+    let casualUsed = 0;
+    let sickUsed = 0;
+    let emergencyUsed = 0;
+
+    (leaveRequests || []).forEach(req => {
+      if ((req.status || '').toUpperCase() !== 'APPROVED') return;
+
+      const reqEmpId = String(req.employeeId || '').toLowerCase().trim();
+      const reqName = String(req.employeeName || '').toLowerCase().trim();
+
+      const isMatch = (
+        (targetId && reqEmpId === targetId) ||
+        (targetEmail && reqEmpId === targetEmail) ||
+        (targetName && reqName === targetName) ||
+        (targetId && reqName === targetId)
+      );
+
+      if (isMatch) {
+        const days = Number(req.totalDays || (req.isHalfDay ? 0.5 : 1));
+        const rawType = String(req.leaveType || '').toUpperCase().trim();
+
+        if (rawType.includes('CASUAL')) {
+          casualUsed += days;
+        } else if (rawType.includes('SICK')) {
+          sickUsed += days;
+        } else if (rawType.includes('EMERGENCY') || rawType.includes('ANNUAL')) {
+          emergencyUsed += days;
+        }
+      }
+    });
+
+    const casual = Math.max(0, initialQuota.casual - casualUsed);
+    const sick = Math.max(0, initialQuota.sick - sickUsed);
+    const emergency = Math.max(0, initialQuota.emergency - emergencyUsed);
+    const total = casual + sick + emergency;
+
+    return {
+      casual,
+      sick,
+      emergency,
+      total,
+      casualUsed,
+      sickUsed,
+      emergencyUsed,
+      initialCasual: initialQuota.casual,
+      initialSick: initialQuota.sick,
+      initialEmergency: initialQuota.emergency
+    };
+  };
+
+  const computedUserBalances = calculateEmployeeLeaveBalances(currentUser);
+  const effectiveUser = currentUser ? { ...currentUser, leaveBalance: computedUserBalances } : null;
+
+  const employeesWithDynamicBalances = employees.map(emp => ({
+    ...emp,
+    leaveBalance: calculateEmployeeLeaveBalances(emp)
+  }));
+
   // ── Remarks: fetch real remarks & subscribe to Realtime updates ────
   useEffect(() => {
     let isMounted = true;
@@ -1466,16 +1566,17 @@ export const StoreProvider = ({ children }) => {
   return (
     <StoreContext.Provider
       value={{
-        currentUser,
+        currentUser: effectiveUser,
         activeRole,
         authLoading,
         setAuthenticatedUser,
         clearAuth,
-        employees,
+        employees: employeesWithDynamicBalances,
         attendanceRecords,
         leaveRequests,
-        leaveBalances,
+        leaveBalances: computedUserBalances,
         fetchLeaveBalances,
+        calculateEmployeeLeaveBalances,
         remarks,
         officeSettings,
         notifications: roleNotifications,

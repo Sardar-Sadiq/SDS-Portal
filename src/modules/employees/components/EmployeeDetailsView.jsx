@@ -22,15 +22,14 @@ import { isRemarkForEmployee } from '@/modules/remarks/services/remarkService';
 import { EditEmployeeModal } from './EditEmployeeModal';
 
 export const EmployeeDetailsView = ({ employeeId, onBack }) => {
-  const { employees, attendanceRecords, remarks, activeRole, officeSettings, deleteRemark } = useStore();
+  const { employees, attendanceRecords, remarks, activeRole, officeSettings, deleteRemark, calculateEmployeeLeaveBalances } = useStore();
   const [isRemarkModalOpen, setIsRemarkModalOpen] = useState(false);
   const [editingRemark, setEditingRemark] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const emp = employees.find(e => e.id === employeeId || e.employeeId === employeeId) || employees[0] || {};
-
-  const empAttendance = emp?.employeeId ? attendanceRecords.filter(a => a.employeeId === emp.employeeId) : [];
-  const empRemarks = emp ? remarks.filter(r => isRemarkForEmployee(r, emp)).slice(0, 2) : [];
+  const empAttendance = attendanceRecords.filter(a => a.employeeId === emp?.employeeId || a.employeeId === emp?.id);
+  const empRemarks = remarks.filter(r => isRemarkForEmployee(r, emp));
 
   const handleOpenAddRemark = () => {
     setEditingRemark(null);
@@ -47,9 +46,10 @@ export const EmployeeDetailsView = ({ employeeId, onBack }) => {
   };
 
   const geoRadius = emp?.officeLocation?.radiusMeters ?? officeSettings?.geoFence?.radiusMeters ?? 20;
-  const casualLeave = emp?.leaveBalance?.casual ?? 12;
-  const sickLeave = emp?.leaveBalance?.sick ?? 12;
-  const emergencyLeave = emp?.leaveBalance?.emergency ?? emp?.leaveBalance?.annual ?? 10;
+  const empBal = calculateEmployeeLeaveBalances ? calculateEmployeeLeaveBalances(emp) : emp?.leaveBalance;
+  const casualLeave = empBal?.casual ?? emp?.leaveBalance?.casual ?? 12;
+  const sickLeave = empBal?.sick ?? emp?.leaveBalance?.sick ?? 12;
+  const emergencyLeave = empBal?.emergency ?? emp?.leaveBalance?.emergency ?? emp?.leaveBalance?.annual ?? 10;
 
   return (
     <div className="space-y-6">

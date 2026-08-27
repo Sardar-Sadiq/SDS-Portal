@@ -7,7 +7,7 @@ import { History, Calendar } from 'lucide-react';
 import { LedgerHistoryDrawer } from './LedgerHistoryDrawer';
 
 export const LeaveBalanceCard = ({ pendingCount = 0 }) => {
-  const { currentUser, leaveBalances } = useStore();
+  const { currentUser, leaveBalances, calculateEmployeeLeaveBalances } = useStore();
   const [policies, setPolicies] = useState({
     casual: { monthly_accrual: 1.00, annual_cap: 12.00 },
     sick: { monthly_accrual: 1.00, annual_cap: 12.00 },
@@ -35,9 +35,10 @@ export const LeaveBalanceCard = ({ pendingCount = 0 }) => {
     fetchPolicies();
   }, []);
 
-  const casualBalance = leaveBalances?.casual ?? currentUser?.leaveBalance?.casual ?? 12;
-  const sickBalance = leaveBalances?.sick ?? currentUser?.leaveBalance?.sick ?? 12;
-  const emergencyBalance = leaveBalances?.emergency ?? leaveBalances?.annual ?? currentUser?.leaveBalance?.emergency ?? currentUser?.leaveBalance?.annual ?? 10;
+  const currentBal = calculateEmployeeLeaveBalances ? calculateEmployeeLeaveBalances(currentUser) : leaveBalances;
+  const casualBalance = currentBal?.casual ?? leaveBalances?.casual ?? currentUser?.leaveBalance?.casual ?? 12;
+  const sickBalance = currentBal?.sick ?? leaveBalances?.sick ?? currentUser?.leaveBalance?.sick ?? 12;
+  const emergencyBalance = currentBal?.emergency ?? leaveBalances?.emergency ?? leaveBalances?.annual ?? currentUser?.leaveBalance?.emergency ?? currentUser?.leaveBalance?.annual ?? 10;
 
   return (
     <div className="space-y-2">
